@@ -1,26 +1,30 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ===== STITCH THEME (SOURCE OF TRUTH) ===== */
+@theme {
+  --color-primary: #306ee8;
+
+  --color-background-light: #f6f6f8;
+  --color-background-dark: #0b1020;
+
+  --color-card-light: #ffffff;
+  --color-card-dark: #141b2d;
+
+  --color-border-light: #e7ebf3;
+  --color-border-dark: #2a3140;
+
+  --color-muted-light: #4e6797;
+  --color-muted-dark: #94a3b8;
+
+  --font-display: "Lexend", system-ui, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ===== BASE ===== */
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-display);
 }
