@@ -114,7 +114,7 @@ export default function SubjectsOnboardingPage() {
             <main className="flex justify-center px-6 md:px-12 py-12">
                 <div className="w-full max-w-[1200px] flex flex-col items-center gap-8">
                     {/* Progress */}
-                    <div className="w-full max-w-[645px] flex flex-col gap-4">
+                    <div className="w-full max-w-[572px] flex flex-col gap-4">
                         <div className="flex justify-between items-end">
                             <p className="text-lg font-medium">Step 2 of 4</p>
                             <p className="text-md text-[#4e6797]">Courses</p>
@@ -128,10 +128,10 @@ export default function SubjectsOnboardingPage() {
                     <div className="w-full max-w-[780px] bg-white rounded-2xl shadow-xl border border-[#e7ebf3] p-8 md:p-12 flex flex-col gap-10">
                         {/* Heading */}
                         <div className="flex flex-col gap-2">
-                            <h1 className="text-3xl md:text-[40px] font-bold tracking-tight">
+                            <h1 className="text-3xl md:text-[36px] font-bold tracking-tight">
                                 What are you studying?
                             </h1>
-                            <p className="text-base md:text-md text-[#4e6797]">
+                            <p className="text-base md:text-md text-[16px   ] text-[#4e6797]">
                                 Add the courses you are taking this semester.
                             </p>
                         </div>
@@ -139,7 +139,7 @@ export default function SubjectsOnboardingPage() {
                         {/* MASTER–DETAIL */}
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
                             {/* LEFT COLUMN (height locked) */}
-                            <div className="md:col-span-4 relative h-[520px]">
+                            <div className="md:col-span-4 relative h-[460px]">
                                 {/* Scrollable list */}
                                 <div
                                     className={`flex flex-col gap-3 pr-1 ${isScrollable
@@ -154,13 +154,13 @@ export default function SubjectsOnboardingPage() {
                                                 subjectRefs.current[idx] = el;
                                             }}
                                             onClick={() => setActiveIndex(idx)}
-                                            className={`h-20 flex-none px-4 rounded-xl text-left border transition flex flex-col justify-center
+                                            className={`h-16 flex-none px-4 rounded-lg text-left border transition flex flex-col justify-center
                                                 ${idx === activeIndex
                                                     ? "border-primary bg-primary/10"
                                                     : "border-[#e7ebf3] hover:bg-[#f8f9fc]"
                                                 }`}
                                         >
-                                            <p className="text-lg font-medium truncate">
+                                            <p className="text-md font-medium truncate">
                                                 {s.name || `Subject ${idx + 1}`}
                                             </p>
                                             <p className="text-sm text-[#4e6797] truncate">
@@ -186,7 +186,7 @@ export default function SubjectsOnboardingPage() {
                             </div>
 
                             {/* RIGHT EDITOR */}
-                            <div className="md:col-span-8 flex flex-col gap-8 border border-[#e7ebf3] rounded-xl p-6 relative">
+                            <div className="md:col-span-8 flex flex-col gap-7 border border-[#e7ebf3] rounded-xl p-6 relative">
                                 {subjects.length > 1 && (
                                     <button
                                         onClick={() =>
@@ -202,11 +202,11 @@ export default function SubjectsOnboardingPage() {
 
                                 {/* Name */}
                                 <div className="flex flex-col gap-2">
-                                    <label className="text-xl font-medium">
+                                    <label className="text-lg font-medium">
                                         Subject Name
                                     </label>
                                     <input
-                                        className="w-full h-16 px-4 bg-[#f8f9fc] border border-[#d0d7e7] rounded-lg text-xl"
+                                        className="w-full h-14 px-4 bg-[#f8f9fc] border border-[#d0d7e7] rounded-lg text-lg"
                                         value={activeSubject.name}
                                         onChange={(e) =>
                                             updateSubject(
@@ -222,11 +222,11 @@ export default function SubjectsOnboardingPage() {
                                 {/* Code + Credits */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-xl font-medium">
+                                        <label className="text-lg font-medium">
                                             Code (optional)
                                         </label>
                                         <input
-                                            className="w-full h-16 px-4 bg-[#f8f9fc] border border-[#d0d7e7] rounded-lg text-xl"
+                                            className="w-full h-14 px-4 bg-[#f8f9fc] border border-[#d0d7e7] rounded-lg text-lg"
                                             value={activeSubject.code}
                                             onChange={(e) =>
                                                 updateSubject(
@@ -240,12 +240,12 @@ export default function SubjectsOnboardingPage() {
                                     </div>
 
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-xl font-medium">
+                                        <label className="text-lg font-medium">
                                             Credits
                                         </label>
                                         <input
                                             type="number"
-                                            className="w-full h-16 px-4 bg-[#f8f9fc] border border-[#d0d7e7] rounded-lg text-xl"
+                                            className="w-full h-14 px-4 bg-[#f8f9fc] border border-[#d0d7e7] rounded-lg text-lg"
                                             value={activeSubject.credits}
                                             onChange={(e) =>
                                                 updateSubject(
@@ -261,54 +261,56 @@ export default function SubjectsOnboardingPage() {
 
                                 {/* Difficulty */}
                                 <div className="flex flex-col gap-2">
-                                    <label className="text-xl font-medium">
+                                    <label className="text-lg font-medium">
                                         Difficulty
                                     </label>
-                                    <div className="grid grid-cols-3 gap-4 h-14">
-                                        {(["Easy", "Medium", "Hard"] as Difficulty[]).map(
-                                            (level) => {
-                                                const styles =
-                                                    level === "Easy"
-                                                        ? ["green-100", "green-700", "green-300", "green-50"]
-                                                        : level === "Medium"
-                                                            ? ["amber-100", "amber-700", "amber-300", "amber-50"]
-                                                            : ["red-100", "red-700", "red-300", "red-50"];
 
-                                                const active =
-                                                    activeSubject.difficulty === level;
+                                    <div className="grid grid-cols-3 gap-4 h-12">
+                                        {(["Easy", "Medium", "Hard"] as Difficulty[]).map((level) => {
+                                            const active = activeSubject.difficulty === level;
 
-                                                return (
-                                                    <button
-                                                        key={level}
-                                                        type="button"
-                                                        onClick={() =>
-                                                            updateSubject(
-                                                                activeIndex,
-                                                                "difficulty",
-                                                                level
-                                                            )
-                                                        }
-                                                        className={`rounded-xl border text-lg font-medium transition
-                                                            ${active
-                                                                ? `bg-${styles[0]} text-${styles[1]} border-${styles[2]}`
-                                                                : `bg-[#f8f9fc] border-[#d0d7e7] hover:bg-${styles[3]}`
-                                                            }`}
-                                                    >
-                                                        {level}
-                                                    </button>
-                                                );
-                                            }
-                                        )}
+                                            const activeClass =
+                                                level === "Easy"
+                                                    ? "bg-green-100 text-green-700 border-green-300"
+                                                    : level === "Medium"
+                                                        ? "bg-amber-100 text-amber-700 border-amber-300"
+                                                        : "bg-red-100 text-red-700 border-red-300";
+
+                                            const hoverClass =
+                                                level === "Easy"
+                                                    ? "hover:bg-green-50"
+                                                    : level === "Medium"
+                                                        ? "hover:bg-amber-50"
+                                                        : "hover:bg-red-50";
+
+                                            return (
+                                                <button
+                                                    key={level}
+                                                    type="button"
+                                                    onClick={() =>
+                                                        updateSubject(activeIndex, "difficulty", level)
+                                                    }
+                                                    className={`rounded-xl border text-lg font-medium transition
+            ${active
+                                                            ? activeClass
+                                                            : `bg-[#f8f9fc] border-[#d0d7e7] ${hoverClass}`
+                                                        }`}
+                                                >
+                                                    {level}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </div>
+
 
                                 {/* Notes */}
                                 <div className="flex flex-col gap-2">
 
                                     <textarea
                                         rows={4}
-                                        className="w-full h-20 resize-none px-4 py-3 bg-[#f8f9fc] border border-[#d0d7e7] rounded-lg text-lg placeholder:text-[#94a3b8] focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                        placeholder="Anything you want to remember about this course…"
+                                        className="w-full h-16 resize-none px-4 py-3 bg-[#f8f9fc] border border-[#d0d7e7] rounded-lg text-md placeholder:text-[#94a3b8] focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                        placeholder="About this course…"
                                         value={activeSubject.notes}
                                         onChange={(e) =>
                                             updateSubject(activeIndex, "notes", e.target.value)
@@ -320,19 +322,33 @@ export default function SubjectsOnboardingPage() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-col-reverse md:flex-row items-center justify-between gap-4">
-                            <button className="text-xl font-medium text-[#4e6797] hover:text-[#0e121b] transition">
-                                Back
+                        {/* Actions */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-4 w-full">
+
+                            {/* Go back */}
+                            <button className="flex items-center justify-center gap-2 text-lg font-medium text-primary border border-primary rounded-xl h-14 hover:bg-primary/5 transition">
+                                <span className="material-symbols-outlined text-xl">arrow_back</span>
+                                Go back
                             </button>
-                            <button className="bg-primary text-white font-semibold h-15 px-10 rounded-xl flex items-center gap-3 text-base md:text-lg shadow-sm hover:shadow-md transition">
-                                Continue
-                                <span className="material-symbols-outlined text-xl">
-                                    arrow_forward
-                                </span>
-                            </button>
+
+                            {/* Empty middle column (visual balance) */}
+                            <div />
+
+                            {/* Skip + Continue */}
+                            <div className="flex gap-3 justify-end">
+                                <button className="flex items-center justify-center h-14 px-6 min-w-[140px] whitespace-nowrap text-lg font-medium text-primary border border-primary rounded-xl hover:bg-primary/5 transition">
+                                    Skip for now
+                                </button>
+
+                                <button className="flex items-center justify-center h-14 px-8 min-w-[160px] bg-primary text-white text-lg font-semibold rounded-xl shadow-sm hover:shadow-md transition">
+                                    Continue
+                                    <span className="material-symbols-outlined text-xl ml-2">
+                                        arrow_forward
+                                    </span>
+                                </button>
+                            </div>
                         </div>
                     </div>
-
                     <p className="text-lg text-[#94a3b8]">
                         Your data is saved automatically.
                     </p>
