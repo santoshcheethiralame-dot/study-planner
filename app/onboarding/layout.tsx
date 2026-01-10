@@ -3,8 +3,8 @@
 import { usePathname } from "next/navigation";
 
 const STEPS = [
+    { path: "/onboarding/semester", label: "Semester" },
     { path: "/onboarding/subjects", label: "Subjects" },
-    { path: "/onboarding/preferences", label: "Preferences" },
     { path: "/onboarding/timetable", label: "Timetable" },
 ];
 
@@ -15,10 +15,17 @@ export default function OnboardingLayout({
 }) {
     const pathname = usePathname();
 
-    const currentStep =
-        STEPS.findIndex((step) => pathname.startsWith(step.path)) + 1;
-
+    // Hide status bar completely on Done page
     const isDonePage = pathname.startsWith("/onboarding/done");
+
+    // Find step index safely
+    const stepIndex = STEPS.findIndex(step =>
+        pathname.startsWith(step.path)
+    );
+
+    // Clamp step to minimum 1
+    const currentStep = stepIndex >= 0 ? stepIndex + 1 : 1;
+    const totalSteps = STEPS.length;
 
     return (
         <div className="min-h-screen bg-[#f6f6f8] font-display text-[#0e121b]">
@@ -43,12 +50,12 @@ export default function OnboardingLayout({
                 </button>
             </header>
 
-            {/* STATUS BAR (hidden on Done page) */}
+            {/* STATUS BAR (hidden on Done) */}
             {!isDonePage && (
                 <div className="max-w-[1200px] mx-auto px-6 md:px-12 pt-8">
                     <div className="flex justify-between items-end mb-3">
                         <p className="text-lg font-medium">
-                            Step {currentStep} of {STEPS.length}
+                            Step {currentStep} of {totalSteps}
                         </p>
                         <p className="text-md text-[#4e6797]">
                             {STEPS[currentStep - 1]?.label}
@@ -59,7 +66,7 @@ export default function OnboardingLayout({
                         <div
                             className="h-full bg-primary transition-all duration-500"
                             style={{
-                                width: `${(currentStep / STEPS.length) * 100}%`,
+                                width: `${(currentStep / totalSteps) * 100}%`,
                             }}
                         />
                     </div>
