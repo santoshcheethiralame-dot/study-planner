@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useOnboardingGuard } from "@/hooks/onBoardingGuard";
 
 export default function SemesterOnboardingPage() {
     const router = useRouter();
-
+    useOnboardingGuard("skip");
     const [semesterName, setSemesterName] = useState("");
     const [major, setMajor] = useState("");
     const [startDate, setStartDate] = useState("");
@@ -46,8 +47,9 @@ export default function SemesterOnboardingPage() {
                 <div className="absolute left-0 top-8 bottom-8 w-[3px] rounded-full bg-primary/30" />
 
                 <div className="flex flex-col gap-3">
-                    <h1 className="text-3xl md:text-[35px] font-bold tracking-tight">
-                        Let’s set up your semester <span className="opacity-70">✨</span>
+                    <h1 className="text-3xl md:text-[35px] font-bold tracking-tight flex items-center gap-2">
+                        <span role="img" aria-label="rocket">🚀</span>
+                        Let’s set up your semester
                     </h1>
                     <p className="text-sm text-primary/70 font-medium">
                         {helperText}

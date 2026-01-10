@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useOnboardingGuard } from "@/hooks/onBoardingGuard";
 
 type Difficulty = "Easy" | "Medium" | "Hard" | "";
 
@@ -23,6 +24,7 @@ const EMPTY_SUBJECT: Subject = {
 
 export default function SubjectsOnboardingPage() {
     const router = useRouter();
+    useOnboardingGuard("skip");
 
     const [subjects, setSubjects] = useState<Subject[]>(
         Array.from({ length: 5 }, () => ({ ...EMPTY_SUBJECT }))
@@ -123,8 +125,9 @@ export default function SubjectsOnboardingPage() {
 
                         {/* Heading */}
                         <div className="flex flex-col gap-2">
-                            <h1 className="text-3xl md:text-[36px] font-bold tracking-tight">
-                                What are you studying? <span className="opacity-70">📚</span>
+                            <h1 className="text-3xl md:text-[36px] font-bold tracking-tight flex items-center gap-2">
+                                <span role="img" aria-label="books">📚</span>
+                                What are you studying?
                             </h1>
                             <p className="text-sm text-primary/70 font-medium">{headerHelper}</p>
                         </div>
