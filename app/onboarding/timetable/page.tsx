@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 
 type Day = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
 
@@ -38,13 +39,11 @@ const PREVIEW_CLASSES: TimetableClass[] = [
     { id: "p3", subjectName: "History", subjectCode: "", location: "Hall A", day: "Tue", time: "09:00", color: "orange" },
     { id: "p4", subjectName: "Biology", subjectCode: "", location: "Lab 4", day: "Wed", time: "08:00", color: "purple" },
     { id: "p5", subjectName: "Physics", subjectCode: "", location: "Lab 2", day: "Wed", time: "10:00", color: "red" },
-    { id: "p6", subjectName: "English",subjectCode:"", location: "Room 101", day: "Thu", time: "11:00", color: "indigo" },
-    { id: "p7", subjectName: "Gym", subjectCode:"", location: "Main Court", day: "Fri", time: "09:00", color: "green" },
+    { id: "p6", subjectName: "English", subjectCode: "", location: "Room 101", day: "Thu", time: "11:00", color: "indigo" },
+    { id: "p7", subjectName: "Gym", subjectCode: "", location: "Main Court", day: "Fri", time: "09:00", color: "green" },
 ];
 
-const COLOR_OPTIONS = [
-    "blue", "purple", "orange", "green", "red", "teal", "pink", "indigo"
-];
+const COLOR_OPTIONS = ["blue", "purple", "orange", "green", "red", "teal", "pink", "indigo"];
 
 const COLOR_STYLES: Record<string, string> = {
     blue: "bg-blue-50 text-blue-700 border-blue-200",
@@ -67,6 +66,11 @@ export default function TimetablePage() {
     const [selectedSlot, setSelectedSlot] = useState<{ day: Day; time: TimeSlot } | null>(null);
     const [isPreviewMode, setIsPreviewMode] = useState(true);
 
+    const router = useRouter();
+
+    // 🔥 FIX: track whether we've exited preview at least once
+    const exitedPreviewOnce = useRef(false);
+
     useEffect(() => {
         const stored = localStorage.getItem("subjects");
         if (stored) {
@@ -79,24 +83,14 @@ export default function TimetablePage() {
         }
     }, []);
 
+    // Persist classes only when not in preview (so preview doesn't get saved)
     useEffect(() => {
-        const stored = localStorage.getItem("timetable");
-        if (stored) {
+        if (!isPreviewMode) {
             try {
-                const parsed = JSON.parse(stored);
-                if (Array.isArray(parsed)) {
-                    setClasses(parsed);
-                    if (parsed.length > 0) setIsPreviewMode(false);
-                }
+                localStorage.setItem("timetable", JSON.stringify(classes));
             } catch { }
         }
-    }, []);
-
-    useEffect(() => {
-        if (classes.length > 0) {
-            localStorage.setItem("timetable", JSON.stringify(classes));
-        }
-    }, [classes]);
+    }, [classes, isPreviewMode]);
 
     const TIMES: TimeSlot[] = [
         "08:00",
@@ -115,15 +109,26 @@ export default function TimetablePage() {
     const activeClasses = isPreviewMode ? PREVIEW_CLASSES : classes;
 
     const getClassForSlot = (day: Day, time: TimeSlot) => {
-        return activeClasses.find(
-            (c) => c.day === day && c.time === time
-        );
+        return activeClasses.find((c) => c.day === day && c.time === time);
     };
 
     const handleSlotClick = (day: Day, time: TimeSlot) => {
         if (isPreviewMode) {
+            // exit preview mode
             setIsPreviewMode(false);
-            setClasses([]);
+
+            // 🔥 FIX: do not automatically load saved timetable on first exit;
+            // start with a clean slate on the first exit so preview doesn't persist.
+            if (!exitedPreviewOnce.current) {
+                // load any previously saved timetable only if you want to restore user data.
+                // Here we choose to start clean (prevent preview leakage), so clear classes.
+                setClasses([]);
+                exitedPreviewOnce.current = true;
+            } else {
+                // if we've exited preview before, we may have a persisted timetable already in state.
+                // no-op
+            }
+
             setSelectedSlot({ day, time });
             setShowAddModal(true);
             return;
@@ -135,7 +140,8 @@ export default function TimetablePage() {
     const handleAddClass = (subjectName: string, location: string) => {
         if (!selectedSlot) return;
 
-        const colorIndex = classes.length % COLOR_OPTIONS.length;
+        const color = COLOR_OPTIONS[classes.length % COLOR_OPTIONS.length];
+
         const newClass: TimetableClass = {
             id: `${selectedSlot.day}-${selectedSlot.time}-${Date.now()}`,
             subjectName,
@@ -143,48 +149,35 @@ export default function TimetablePage() {
             location,
             day: selectedSlot.day,
             time: selectedSlot.time,
-            color: COLOR_OPTIONS[colorIndex],
+            color,
         };
 
-        const updatedClasses = [...classes, newClass];
-        setClasses(updatedClasses);
-        localStorage.setItem("timetable", JSON.stringify(updatedClasses));
+        setClasses((prev) => {
+            const updated = [...prev, newClass];
+            try { if (!isPreviewMode) localStorage.setItem("timetable", JSON.stringify(updated)); } catch { }
+            return updated;
+        });
+
         setShowAddModal(false);
         setSelectedSlot(null);
     };
 
+    // Navigation handlers:
+    const handleGoBack = () => {
+        router.push("/onboarding/subjects");
+    };
+    const handleContinue = () => {
+        router.push("/onboarding/done");
+    };
+    const handleSkip = () => {
+        router.push("/onboarding/done");
+    };
+
     return (
         <div className="min-h-screen w-full bg-[#f6f6f8] text-[#0e121b] font-display">
-            {/* Header */}
-            <header className="flex items-center justify-between border-b border-[#e7ebf3] px-6 md:px-12 py-4 bg-white sticky top-0 z-50">
-                <div className="flex items-center gap-3">
-                    <div className="size-6 text-primary">
-                        <span className="material-symbols-outlined text-2xl">
-                            school
-                        </span>
-                    </div>
-                    <h2 className="text-lg font-bold tracking-tight">
-                        Harmony Planner
-                    </h2>
-                </div>
-                <button className="text-[#4e6797] hover:text-primary transition-colors">
-                    <span className="material-symbols-outlined">help</span>
-                </button>
-            </header>
-
+            {/* Header (kept minimal since your original had a top header earlier) */}
             <main className="flex justify-center px-6 md:px-12 py-12">
                 <div className="w-full max-w-[1200px] flex flex-col items-center gap-8">
-                    {/* Progress */}
-                    <div className="w-full max-w-[645px] flex flex-col gap-4">
-                        <div className="flex justify-between items-end">
-                            <p className="text-lg font-medium">Step 3 of 4</p>
-                            <p className="text-md text-[#4e6797]">Timetable</p>
-                        </div>
-                        <div className="h-3 w-full rounded-full bg-[#d0d7e7] overflow-hidden">
-                            <div className="h-full w-3/4 bg-primary transition-all duration-500" />
-                        </div>
-                    </div>
-
                     {/* Card */}
                     <div className="w-full max-w-[1500px] bg-white rounded-2xl shadow-xl border border-[#e7ebf3] p-8 md:p-12 flex flex-col gap-10">
                         {/* Heading */}
@@ -228,14 +221,14 @@ export default function TimetablePage() {
                                                         {day}
                                                     </td>
                                                     {TIMES.map((time) => {
-                                                        const slot = getClassForSlot(day, time);
+                                                        const slot = getClassForSlot(day as Day, time as TimeSlot);
                                                         return (
                                                             <td
                                                                 key={time}
                                                                 className="h-20 p-1 align-top border-l border-dashed border-[#e7ebf3]"
                                                             >
                                                                 <button
-                                                                    onClick={() => handleSlotClick(day, time)}
+                                                                    onClick={() => handleSlotClick(day as Day, time as TimeSlot)}
                                                                     className={`
                                                                         w-full ${TILE_HEIGHT}
                                                                         rounded-lg border
@@ -243,8 +236,8 @@ export default function TimetablePage() {
                                                                         flex items-center justify-center group/slot
                                                                         ${slot
                                                                             ? COLOR_STYLES[slot.color ?? "blue"]
-                                                                            : "border-2 border-dashed border-[#d0d7e7] hover:border-primary hover:bg-primary/5"}
-                                                                    `}
+                                                                            : "border-2 border-dashed border-[#d0d7e7] hover:border-primary hover:bg-primary/5"
+                                                                        }`}
                                                                 >
                                                                     <div className="w-full h-full flex flex-col justify-center px-3">
                                                                         {!slot ? (
@@ -280,15 +273,16 @@ export default function TimetablePage() {
                                 onClick={() => setShowWeekends((v) => !v)}
                                 className="text-sm font-medium text-[#4e6797] hover:text-primary transition"
                             >
-                                {showWeekends
-                                    ? "− Hide weekends"
-                                    : "+ Show weekends (optional)"}
+                                {showWeekends ? "− Hide weekends" : "+ Show weekends (optional)"}
                             </button>
                         </div>
 
                         {/* Actions */}
                         <div className="flex flex-col-reverse md:flex-row items-center justify-between gap-4 pt-6 border-t border-[#f0f2f7]">
-                            <button className="flex items-center gap-2 text-lg font-medium text-primary hover:text-primary/80 transition border border-primary rounded-xl h-14 px-6 hover:bg-primary/5">
+                            <button
+                                className="flex items-center gap-2 text-lg font-medium text-primary hover:text-primary/80 transition border border-primary rounded-xl h-14 px-6 hover:bg-primary/5"
+                                onClick={handleGoBack}
+                            >
                                 <span className="material-symbols-outlined text-lg">
                                     arrow_back
                                 </span>
@@ -296,10 +290,16 @@ export default function TimetablePage() {
                             </button>
 
                             <div className="flex items-center gap-4">
-                                <button className="h-14 px-6 rounded-xl border border-primary text-lg font-medium text-primary hover:bg-primary/5 transition">
+                                <button
+                                    className="h-14 px-6 rounded-xl border border-primary text-lg font-medium text-primary hover:bg-primary/5 transition"
+                                    onClick={handleSkip}
+                                >
                                     Skip for now
                                 </button>
-                                <button className="h-14 px-8 rounded-xl bg-primary text-white font-semibold text-lg shadow-sm hover:shadow-md transition flex items-center gap-2">
+                                <button
+                                    className="h-14 px-8 rounded-xl bg-primary text-white font-semibold text-lg shadow-sm hover:shadow-md transition flex items-center gap-2"
+                                    onClick={handleContinue}
+                                >
                                     Continue
                                     <span className="material-symbols-outlined text-lg">
                                         arrow_forward

@@ -6,22 +6,6 @@ export default function OnboardingDonePage() {
     return (
         <div className="min-h-screen bg-[#f6f6f8] font-display text-[#0e121b] flex flex-col">
 
-            {/* Header */}
-            <header className="flex items-center justify-between border-b border-[#e7ebf3] bg-white/80 backdrop-blur px-6 md:px-12 py-4 sticky top-0 z-50">
-                <div className="flex items-center gap-3">
-                    <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                        <span className="material-symbols-outlined">menu_book</span>
-                    </div>
-                    <h2 className="text-lg font-bold tracking-tight">
-                        Harmony Planner
-                    </h2>
-                </div>
-
-                <button className="flex items-center gap-2 text-sm font-medium text-[#4e6797] hover:text-primary transition">
-                    <span className="material-symbols-outlined text-[20px]">help</span>
-                    <span className="hidden sm:inline">Help</span>
-                </button>
-            </header>
 
             {/* Main */}
             <main className="flex-1 flex items-center justify-center px-4 py-10">
