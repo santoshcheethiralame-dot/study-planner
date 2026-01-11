@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useOnboardingGuard } from "@/hooks/onBoardingGuard";
+import { useRouter } from "next/navigation";
 
 function Confetti() {
   useEffect(() => {
@@ -84,6 +85,15 @@ export default function OnboardingDonePage() {
     timetableCount: 0,
   });
 
+  const router = useRouter();
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  useEffect(() => {
+    try {
+      (router as any).prefetch?.("/onboarding/day-context");
+    } catch {}
+  }, [router]);
+
   useEffect(() => {
     try {
       const semester = JSON.parse(localStorage.getItem("semester") || "{}");
@@ -101,6 +111,20 @@ export default function OnboardingDonePage() {
   useEffect(() => {
     localStorage.setItem("onboarding_completed", "true");
   }, []);
+
+  const handleContinue = async () => {
+    if (isNavigating) return;
+    setIsNavigating(true);
+
+    try {
+      await (router as any).prefetch?.("/onboarding/day-context");
+    } catch {}
+
+    // Optional: micro wait for prefetch
+    // await new Promise((r) => setTimeout(r, 40));
+
+    router.replace("/onboarding/day-context");
+  };
 
   return (
     <div className="min-h-screen bg-[#f6f6f8] font-display text-[#0e121b] flex flex-col">
@@ -142,17 +166,18 @@ export default function OnboardingDonePage() {
               </ul>
             </div>
             <div className="w-full space-y-4">
-              <Link
-                href="/dashboard"
-                className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-semibold rounded-xl shadow-lg shadow-primary/20 transition flex items-center justify-center gap-2 group"
+              <button
+                onClick={handleContinue}
+                disabled={isNavigating}
+                className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-semibold rounded-xl shadow-lg shadow-primary/20 transition flex items-center justify-center gap-2"
               >
-                Go to Dashboard
+                {isNavigating ? "Opening…" : "Continue"}
                 <span className="material-symbols-outlined transition-transform group-hover:translate-x-1">
                   arrow_forward
                 </span>
-              </Link>
+              </button>
               <Link
-                href="/schedule"
+                href="/timetable"
                 className="w-full h-12 border border-[#e7ebf3] text-[#4e6797] font-medium rounded-xl hover:bg-[#f8f9fc] transition flex items-center justify-center gap-2"
               >
                 <span className="material-symbols-outlined">
