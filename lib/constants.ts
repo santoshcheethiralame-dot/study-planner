@@ -1,0 +1,1 @@
+export const DAY_CONTEXT_KEY = "dayContext";

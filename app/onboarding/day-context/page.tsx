@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useOnboardingGuard } from "@/hooks/onBoardingGuard";
+import { DAY_CONTEXT_KEY } from "@/lib/constants";
 
 type Mood = "low" | "normal" | "high";
 type ExamPhase = "none" | "ISA" | "ESA";
@@ -240,7 +241,7 @@ export default function DayContextPage() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("dayContext");
+      const raw = localStorage.getItem(DAY_CONTEXT_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (parsed?.date === todayKey()) {
@@ -261,15 +262,13 @@ export default function DayContextPage() {
   const handleContinue = () => {
     if (loadingSave) return;
     setLoadingSave(true);
-    const payload = {
-      date: todayKey(),
-      mood,
-      examPhase,
-      specials,
-      savedAt: new Date().toISOString(),
-    };
     try {
-      localStorage.setItem("dayContext", JSON.stringify(payload));
+      localStorage.setItem(DAY_CONTEXT_KEY, JSON.stringify({
+        date: todayKey(),
+        mood,
+        examPhase,
+        specials
+      }));
     } finally {
       setTimeout(() => {
         setLoadingSave(false);
