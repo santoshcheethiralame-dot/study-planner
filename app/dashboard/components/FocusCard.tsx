@@ -1,27 +1,29 @@
 import { StudyBlock } from "@/lib/types";
+import Card from "@/components/ui/card";
+import Button from "@/components/ui/button";
 
-export function FocusCard({ next }: { next?: StudyBlock }) {
-  if (!next) {
-    return (
-      <div className="bg-white rounded-2xl p-6 border border-[#e7ebf3]">
-        <p className="text-sm text-[#4e6797]">
-          No blocks scheduled for today 🎉
-        </p>
-      </div>
-    );
-  }
+export function FocusCard({ next, onStart }: { next?: StudyBlock; onStart?: () => void }) {
+  if (!next) return null;
 
   return (
-    <div className="bg-white rounded-2xl p-6 border border-[#e7ebf3]">
-      <h2 className="font-semibold text-lg">Up next</h2>
-      <p className="mt-2">{next.title}</p>
-      <p className="text-sm text-[#6b7280]">
-        {next.durationMin} minutes
-      </p>
-
-      <button className="mt-4 bg-primary text-white px-4 py-2 rounded-lg">
-        Start block
-      </button>
-    </div>
+    <Card className="border-l-4 border-l-neutral-900 flex flex-col gap-4 shadow-sm">
+      <div className="flex justify-between items-start">
+        <div>
+          <span className="text-xs font-bold uppercase tracking-wider text-primary/80 mb-1 block">
+            Up Next
+          </span>
+          <h2 className="text-2xl font-bold text-neutral-900 leading-tight">
+            {next.title}
+          </h2>
+          <p className="text-sm text-neutral-500 mt-1">
+            {next.subjectCode} • {next.durationMin} mins
+          </p>
+        </div>
+      </div>
+      
+      <Button onClick={onStart}>
+        Start Session
+      </Button>
+    </Card>
   );
 }

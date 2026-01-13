@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useOnboardingGuard } from "@/hooks/onBoardingGuard";
+import { saveDayContext } from "@/lib/dayContext";
 import { DAY_CONTEXT_KEY } from "@/lib/constants";
 
 type Mood = "low" | "normal" | "high";
@@ -18,21 +19,18 @@ const helperMessages = {
   default: "Tell us how today feels — we’ll plan the rest.",
 };
 
-// Bar: Highlighted side bar
 function SideBar() {
   return (
     <div className="absolute left-0 top-8 bottom-8 w-[3px] rounded-full bg-primary/30 pointer-events-none" />
   );
 }
 
-// Helper: Shows the contextual helper text
 function Helper({ text }: { text: string }) {
   return (
     <p className="text-sm mt-1 min-h-[22px] text-primary/70 text-center">{text}</p>
   );
 }
 
-// Card: Main interactive content
 function DayContextCard({
   mood,
   setMoodAndTouch,
@@ -53,7 +51,6 @@ function DayContextCard({
       {/* Mood */}
       <section className="flex flex-col gap-1">
         <label className="text-sm font-medium">How are you feeling?</label>
-
         <div className="flex gap-2">
           <button
             type="button"
@@ -67,7 +64,6 @@ function DayContextCard({
           >
             Low 😔
           </button>
-
           <button
             type="button"
             aria-pressed={mood === "normal"}
@@ -80,7 +76,6 @@ function DayContextCard({
           >
             Normal 🙂
           </button>
-
           <button
             type="button"
             aria-pressed={mood === "high"}
@@ -99,7 +94,6 @@ function DayContextCard({
       {/* Exam phase */}
       <section className="flex flex-col gap-1">
         <label className="text-sm font-medium">Any exams going on?</label>
-
         <div className="flex gap-2">
           <button
             type="button"
@@ -113,7 +107,6 @@ function DayContextCard({
           >
             None
           </button>
-
           <button
             type="button"
             aria-pressed={examPhase === "ISA"}
@@ -126,7 +119,6 @@ function DayContextCard({
           >
             ISA
           </button>
-
           <button
             type="button"
             aria-pressed={examPhase === "ESA"}
@@ -191,7 +183,6 @@ function DayContextCard({
   )
 }
 
-// Continue: Continue button/CTA
 function ContinueButton({
   onContinue,
   loadingSave,
@@ -221,33 +212,34 @@ function ContinueButton({
 export default function DayContextPage() {
   useOnboardingGuard("require");
   const router = useRouter();
+
+  // Flat state for each special
   const [mood, setMood] = useState<Mood>("normal");
   const [examPhase, setExamPhase] = useState<ExamPhase>("none");
-  const [specials, setSpecials] = useState({
-    holiday: false,
-    sick: false,
-    bunked: false,
-  });
-  const [loadingSave, setLoadingSave] = useState(false);
+  const [isHoliday, setIsHoliday] = useState(false);
+  const [isSick, setIsSick] = useState(false);
+  const [bunkedClass, setBunkedClass] = useState(false);
+
   const [isPrefilled, setIsPrefilled] = useState(false);
   const [userInteracted, setUserInteracted] = useState(false);
 
-  const todayKey = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-      d.getDate()
-    ).padStart(2, "0")}`;
-  };
+  // Compose the specials object for use in DayContextCard and save
+  const specials = { holiday: isHoliday, sick: isSick, bunked: bunkedClass };
 
+  // On mount: prefill if localStorage has today's data
   useEffect(() => {
     try {
       const raw = localStorage.getItem(DAY_CONTEXT_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw);
-      if (parsed?.date === todayKey()) {
+      // Get date in YYYY-MM-DD format
+      const todayString = new Date().toISOString().slice(0, 10);
+      if (parsed?.date === todayString) {
         setMood(parsed.mood ?? "normal");
         setExamPhase(parsed.examPhase ?? "none");
-        setSpecials(parsed.specials ?? specials);
+        setIsHoliday(parsed.specials?.holiday ?? false);
+        setIsSick(parsed.specials?.sick ?? false);
+        setBunkedClass(parsed.specials?.bunked ?? false);
         setIsPrefilled(true);
       }
     } catch {
@@ -256,25 +248,21 @@ export default function DayContextPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const toggleSpecial = (key: keyof typeof specials) =>
-    setSpecials((s) => ({ ...s, [key]: !s[key] }));
+  const toggleSpecial = (key: keyof typeof specials) => {
+    if (key === "holiday") setIsHoliday((v) => !v);
+    else if (key === "sick") setIsSick((v) => !v);
+    else if (key === "bunked") setBunkedClass((v) => !v);
+  };
 
   const handleContinue = () => {
-    if (loadingSave) return;
-    setLoadingSave(true);
-    try {
-      localStorage.setItem(DAY_CONTEXT_KEY, JSON.stringify({
-        date: todayKey(),
-        mood,
-        examPhase,
-        specials
-      }));
-    } finally {
-      setTimeout(() => {
-        setLoadingSave(false);
-        router.push("/dashboard");
-      }, 160);
-    }
+    const data = {
+      date: new Date().toISOString().slice(0, 10),
+      mood,
+      examPhase,
+      specials: { holiday: isHoliday, sick: isSick, bunked: bunkedClass }
+    };
+    saveDayContext(data);
+    router.push("/dashboard");
   };
 
   const getHelperText = () => {
@@ -300,9 +288,7 @@ export default function DayContextPage() {
     <main className="flex-1 flex items-center justify-center px-6 min-h-screen">
       <div className="w-full max-w-lg">
         <div className="bg-white rounded-2xl shadow-xl border border-[#e7ebf3] p-12 sm:p-14 relative">
-          {/* Side bar */}
           <SideBar />
-          {/* Top title & helper */}
           <div className="flex flex-col gap-5">
             <div className="text-center">
               <h1 className="text-3xl md:text-3xl font-bold tracking-tight">
@@ -310,7 +296,6 @@ export default function DayContextPage() {
               </h1>
               <Helper text={getHelperText()} />
             </div>
-            {/* Interactive card section */}
             <DayContextCard
               mood={mood}
               setMoodAndTouch={setMoodAndTouch}
@@ -319,11 +304,10 @@ export default function DayContextPage() {
               specials={specials}
               toggleSpecial={toggleSpecial}
             />
-            {/* Continue button */}
             <div>
               <ContinueButton
                 onContinue={handleContinue}
-                loadingSave={loadingSave}
+                loadingSave={false}
                 isPrefilled={isPrefilled}
               />
             </div>

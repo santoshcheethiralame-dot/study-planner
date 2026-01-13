@@ -1,33 +1,33 @@
 // lib/dayContext.ts
+import { DAY_CONTEXT_KEY } from "./constants";
 import type { DayContext } from "./types";
 
-// Exported functions for managing day context
-
-const STORAGE_KEY = "day_context";
-
 export function getTodayKey() {
-    return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  return new Date().toISOString().slice(0, 10);
 }
 
+// Logic: Always store as a dictionary { "2026-01-13": { ...data } }
 export function saveDayContext(context: DayContext) {
-    const all = getAllDayContexts();
-    all[context.date] = context;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  if (typeof window === "undefined") return;
+  const all = getAllDayContexts();
+  all[getTodayKey()] = context;
+  localStorage.setItem(DAY_CONTEXT_KEY, JSON.stringify(all));
 }
 
 export function getTodayContext(): DayContext | null {
-    const all = getAllDayContexts();
-    return all[getTodayKey()] ?? null;
-}
-
-export function hasTodayContext(): boolean {
-    return !!getTodayContext();
+  if (typeof window === "undefined") return null;
+  const all = getAllDayContexts();
+  return all[getTodayKey()] ?? null;
 }
 
 function getAllDayContexts(): Record<string, DayContext> {
-    try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    } catch {
-        return {};
-    }
+  try {
+    return JSON.parse(localStorage.getItem(DAY_CONTEXT_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+export function hasTodayContext(): boolean {
+  return !!getTodayContext();
 }
