@@ -5,77 +5,85 @@ import { useState, useEffect, useCallback, useRef } from "react";
 export function useFocusTimer(initialMinutes: number, onComplete: () => void) {
   const [timeLeft, setTimeLeft] = useState(initialMinutes * 60);
   const [isActive, setIsActive] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize Notification & Audio
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const completedRef = useRef(false);
+
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      audioRef.current = new Audio("/sounds/success.mp3"); // Path to your sound
-      if (Notification.permission === "default") {
-        Notification.requestPermission();
-      }
+    audioRef.current = new Audio("/sounds/success.mp3");
+    if (Notification.permission === "default") {
+      Notification.requestPermission();
     }
   }, []);
 
-  // Format time as MM:SS
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  const toggleTimer = useCallback(() => setIsActive((prev) => !prev), []);
+  const startTimer = useCallback(() => {
+    setIsActive(true);
+  }, []);
 
-  // Countdown Logic w/ Sound and Notification
+  const pauseTimer = useCallback(() => {
+    setIsActive(false);
+  }, []);
+
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
+    if (!isActive || timeLeft <= 0) return;
 
-    if (isActive && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0) {
-      setIsActive(false);
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => prev - 1);
+    }, 1000);
 
-      // 1. Play Sound
-      audioRef.current?.play().catch(() => {});
+    return () => clearInterval(interval);
+  }, [isActive, timeLeft]);
 
-      // 2. Send Notification
-      if (Notification.permission === "granted") {
-        new Notification("Session Complete!", {
-          body: "Great job! Time for a short break.",
-          icon: "/icons/logo.png"
-        });
-      }
+  useEffect(() => {
+    if (timeLeft !== 0 || completedRef.current) return;
 
-      onComplete();
+    completedRef.current = true;
+    setIsActive(false);
+
+    audioRef.current?.play().catch(() => {});
+
+    if (Notification.permission === "granted") {
+      new Notification("Session Complete!", {
+        body: "Great job! Time for a short break.",
+        icon: "/icons/logo.png",
+      });
     }
 
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isActive, timeLeft, onComplete]);
+    onComplete();
+  }, [timeLeft, onComplete]);
 
-  // Keyboard Shortcuts (Space to Toggle, Esc to Pause)
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.code === "Space") {
         e.preventDefault();
-        toggleTimer();
+        setIsActive((a) => !a);
       }
       if (e.code === "Escape") {
-        setIsActive(false);
+        pauseTimer();
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggleTimer]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pauseTimer]);
 
-  // Document Title Update (Show timer in tab)
   useEffect(() => {
-    document.title = isActive ? `${formatTime(timeLeft)} - Focusing` : "Harmony Planner";
+    document.title = isActive
+      ? `${formatTime(timeLeft)} - Focusing`
+      : "Harmony Planner";
   }, [timeLeft, isActive]);
 
-  return { timeLeft, isActive, toggleTimer, formatTime };
+  return {
+    timeLeft,
+    isActive,
+    startTimer,
+    pauseTimer,
+    formatTime,
+  };
 }

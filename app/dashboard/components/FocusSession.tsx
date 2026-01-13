@@ -9,14 +9,21 @@ interface FocusSessionProps {
 }
 
 export function FocusSession({ block, onExit, onComplete }: FocusSessionProps) {
-    // TEMP: Always use 1 minute for the timer
-    const { timeLeft, isActive, toggleTimer, formatTime } = useFocusTimer(
-        1,
+    // Use actual block duration (not hardcoded 1 minute)
+    const {
+        timeLeft,
+        isActive,
+        startTimer,
+        pauseTimer,
+        formatTime
+    } = useFocusTimer(
+        block.durationMin,
         onComplete
     );
 
-    // Progress for 1 min timer (60 seconds)
-    const progress = ((60 - timeLeft) / 60) * 100;
+    // Calculate progress based on actual duration
+    const totalSeconds = block.durationMin * 60;
+    const progress = ((totalSeconds - timeLeft) / totalSeconds) * 100;
 
     return (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white p-6">
@@ -26,6 +33,7 @@ export function FocusSession({ block, onExit, onComplete }: FocusSessionProps) {
                     {block.subjectCode}
                 </span>
                 <h2 className="text-2xl font-semibold text-neutral-900">{block.title}</h2>
+                <p className="text-sm text-neutral-500">{block.durationMin} minute session</p>
             </div>
 
             {/* Timer Display */}
@@ -60,16 +68,37 @@ export function FocusSession({ block, onExit, onComplete }: FocusSessionProps) {
                 <button
                     onClick={onExit}
                     className="px-6 py-3 rounded-xl font-medium text-neutral-600 hover:bg-neutral-100 transition"
+                    tabIndex={0}
+                    type="button"
                 >
                     Exit
                 </button>
                 <button
-                    onClick={toggleTimer}
-                    className={`px-8 py-3 rounded-xl font-bold text-white transition shadow-lg ${isActive ? "bg-amber-500 hover:bg-amber-600" : "bg-primary hover:bg-primary/90"
-                        }`}
+                    onClick={isActive ? pauseTimer : startTimer}
+                    className={`px-8 py-3 rounded-xl font-bold text-white transition shadow-lg ${
+                        isActive ? "bg-amber-500 hover:bg-amber-600" : "bg-primary hover:bg-primary/90"
+                    }`}
+                    tabIndex={0}
+                    type="button"
                 >
-                    {isActive ? "Pause" : "Start Focus"}
+                    {isActive ? "⏸ Pause" : "▶️ Start Focus"}
                 </button>
+                {/* Add early complete button if timer is running */}
+                {isActive && (
+                    <button
+                        onClick={onComplete}
+                        className="px-6 py-3 rounded-xl font-medium bg-green-500 text-white hover:bg-green-600 transition"
+                        tabIndex={0}
+                        type="button"
+                    >
+                        ✓ Complete Early
+                    </button>
+                )}
+            </div>
+
+            {/* Progress indicator text */}
+            <div className="mt-6 text-sm text-neutral-500">
+                {Math.round(progress)}% complete
             </div>
         </div>
     );

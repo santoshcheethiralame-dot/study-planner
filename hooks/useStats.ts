@@ -1,24 +1,59 @@
-"use client";
-
-import { useTodayPlan } from "./useTodayPlan";
+import { useMemo } from "react";
+import { getTodayKey } from "@/lib/dayContext";
+import type { StudyBlock } from "@/lib/types";
 
 export function useStats() {
-  const { plan } = useTodayPlan();
+  return useMemo(() => {
+    const todayKey = getTodayKey();
+    const planKey = "harmony_today_plan_v1";
 
-  if (!plan || plan.length === 0) {
-    return { completionRate: 0, totalMinutes: 0, blocksDone: 0 };
-  }
+    try {
+      const stored = localStorage.getItem(planKey);
+      if (!stored) {
+        return {
+          completionRate: 0,
+          totalMinutes: 0,
+          blocksDone: 0,
+          totalPlanned: 0,
+        };
+      }
 
-  const doneBlocks = plan.filter(b => b.status === "done");
-  const blocksDone = doneBlocks.length;
-  const completionRate = Math.round((blocksDone / plan.length) * 100);
-  
-  const totalMinutes = doneBlocks.reduce((acc, curr) => acc + curr.durationMin, 0);
+      const data = JSON.parse(stored);
 
-  return {
-    completionRate,
-    totalMinutes,
-    blocksDone,
-    totalPlanned: plan.length
-  };
+      // Only calculate for today's plan
+      if (data.date !== todayKey) {
+        return {
+          completionRate: 0,
+          totalMinutes: 0,
+          blocksDone: 0,
+          totalPlanned: 0,
+        };
+      }
+
+      const blocks: StudyBlock[] = data.blocks || [];
+      const totalPlanned = blocks.length;
+      const blocksDone = blocks.filter((b) => b.status === "done").length;
+      const completionRate = totalPlanned > 0
+        ? Math.round((blocksDone / totalPlanned) * 100)
+        : 0;
+      const totalMinutes = blocks
+        .filter((b) => b.status === "done")
+        .reduce((sum, b) => sum + b.durationMin, 0);
+
+      return {
+        completionRate,
+        totalMinutes,
+        blocksDone,
+        totalPlanned,
+      };
+    } catch (error) {
+      console.error("Error calculating stats:", error);
+      return {
+        completionRate: 0,
+        totalMinutes: 0,
+        blocksDone: 0,
+        totalPlanned: 0,
+      };
+    }
+  }, []); // Recalculate when called
 }
