@@ -13,19 +13,25 @@ import { TimetableWidget } from "./components/TimetableWidget";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { context, ready } = useTodayContext();
-  const { plan, completeBlock, deleteBlock, addBlock } = useTodayPlan();
+  const { context, ready: contextReady } = useTodayContext();
+  const { plan, ready: planReady, completeBlock, deleteBlock, addBlock } = useTodayPlan();
   const [activeBlock, setActiveBlock] = useState<StudyBlock | null>(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
 
-  // ... (Your existing useEffect guard) ...
-  // Re-add your existing guard here if you lost it, 
-  // or keep the one you had. It is crucial for redirecting.
+  // Add your auth guard here if needed
 
-  if (!ready || !context || !plan) return <div>Loading...</div>;
+  // Wait for BOTH contexts to be ready
+  if (!contextReady || !planReady) return <div>Loading...</div>;
 
-  const nextBlock = plan.find(b => b.status !== "done");
+  // After both are ready, check if context exists
+  if (!context) {
+    // Redirect to onboarding or show a message
+    router.push('/onboarding');
+    return <div>Redirecting...</div>;
+  }
+
+  const nextBlock = plan?.find(b => b.status !== "done");
 
   const handleQuickAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,9 +84,9 @@ export default function DashboardPage() {
             </button>
           </form>
 
-          <UpcomingList 
-            blocks={plan} 
-            onDelete={deleteBlock} 
+          <UpcomingList
+            blocks={plan || []}  // This line
+            onDelete={deleteBlock}
           />
         </div>
 

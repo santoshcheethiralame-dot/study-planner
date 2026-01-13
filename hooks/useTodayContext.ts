@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DayContext } from "@/lib/types";
 import { DAY_CONTEXT_KEY } from "@/lib/constants";
+import { getTodayKey } from "@/lib/dayContext";
 
 type UseTodayContextReturn = {
   context: DayContext | null;
@@ -21,22 +22,20 @@ export function useTodayContext(): UseTodayContextReturn {
         return;
       }
 
-      const parsed: DayContext = JSON.parse(raw);
-
-      if (!parsed?.date) {
-        setReady(true);
-        return;
+      // Parse as a dictionary of contexts
+      const allContexts: Record<string, DayContext> = JSON.parse(raw);
+      const todayKey = getTodayKey();
+      
+      // Get today's context from the dictionary
+      const todayContext = allContexts[todayKey];
+      
+      if (todayContext) {
+        setContext(todayContext);
       }
-
-      const today = new Date().toISOString().slice(0, 10);
-      if (parsed.date !== today) {
-        setReady(true);
-        return;
-      }
-
-      setContext(parsed);
+      
       setReady(true);
-    } catch {
+    } catch (error) {
+      console.error("Error loading day context:", error);
       setReady(true);
     }
   }, []);
