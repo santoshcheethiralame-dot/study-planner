@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { ToastProvider } from "@/contexts/ToastContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -9,7 +10,15 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Harmony Planner",
-  description: "Plan your study. One day at a time.",
+  description: "Smart study planning app for students",
+  manifest: "/manifest.json",
+  themeColor: "#4e6797",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Harmony",
+  },
 };
 
 export default function RootLayout({
@@ -30,7 +39,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-[#f6f6f8] text-[#0e121b] antialiased">
-        {children}
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

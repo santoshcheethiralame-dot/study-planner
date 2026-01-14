@@ -1,0 +1,1680 @@
+{
+  "assumptions": [
+    "Current state: onboarding flow complete, day-context check-in working, dashboard shows today's plan with FocusSession timer component",
+    "DayContext includes: date, mood, examPhase, specials (holiday/sick/bunked)",
+    "StudyBlock includes: id, title, subjectCode, durationMin, type, status (pending/active/done)",
+    "Subjects stored as array with name/code in localStorage",
+    "Mobile viewport is primary (375px), desktop is 1024px+",
+    "Users are college students with 5-8 subjects, 3-6 hour daily study capacity",
+    "No authentication means one device = one user for v0.1",
+    "Performance budget: <3s initial load, <100ms interactions",
+    "Accessibility: WCAG 2.1 AA minimum"
+  ],
+  
+  "features": [
+    {
+      "id": 1,
+      "tier": "MVP",
+      "name": "Daily Progress Tracker",
+      "summary": "Visual completion percentage for today's study blocks with time-based projections",
+      "userValue": "Students see at-a-glance how much they've accomplished and whether they're on track to finish, reducing anxiety and providing motivation",
+      "uxSketch": "Circular progress ring at top of dashboard (60px diameter) showing percentage, with micro-label '3 of 5 blocks · 2h 15m left'. Tapping opens modal with block-by-block breakdown and projected finish time based on remaining duration.",
+      "dataModel": {
+        "key": "daily_progress_v1",
+        "structure": {
+          "date": "2026-01-14",
+          "totalBlocks": 5,
+          "completedBlocks": 3,
+          "totalMinutes": 240,
+          "completedMinutes": 135,
+          "projectedFinish": "18:45",
+          "blocksBreakdown": [
+            {"id": "abc", "title": "Math", "status": "done", "completedAt": "14:30"},
+            {"id": "def", "title": "Physics", "status": "active", "startedAt": "15:00"}
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "Progress ring updates in real-time when block status changes without page refresh",
+        "Shows 0% when day starts, 100% with celebration confetti when all blocks done",
+        "Handles edge case of adding new blocks mid-day (recalculates percentage correctly)"
+      ],
+      "complexity": "S"
+    },
+    {
+      "id": 2,
+      "tier": "MVP",
+      "name": "Smart Break Reminders",
+      "summary": "Automatic break scheduling between study blocks with customizable activities",
+      "userValue": "Prevents burnout by enforcing healthy study-rest cycles, improving retention and focus for subsequent blocks",
+      "uxSketch": "After completing a block, show full-screen break overlay (pastel yellow bg) with '5-minute break! Try: stretching, water, walk' and a countdown timer. User can skip or extend (+5 min button). Settings allow customizing break duration and activity suggestions.",
+      "dataModel": {
+        "key": "break_config_v1",
+        "structure": {
+          "enabled": true,
+          "defaultDuration": 5,
+          "activities": ["Stretch arms/legs", "Drink water", "5-min walk", "Eye rest (20-20-20)", "Snack"],
+          "skipCount": 0,
+          "lastBreakTaken": "2026-01-14T14:35:00Z"
+        }
+      },
+      "acceptanceCriteria": [
+        "Break screen cannot be dismissed before 60 seconds (minimum rest enforcement)",
+        "Respects user's 'Do Not Disturb' periods if specified in settings",
+        "Tracks skip rate and shows gentle nudge ('You've skipped 3 breaks today') after 3 skips"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 3,
+      "tier": "MVP",
+      "name": "Inline Plan Editor",
+      "summary": "Drag-to-reorder, quick-edit duration/subject, and delete blocks directly on dashboard",
+      "userValue": "Students adapt to real-world changes (class cancelled, friend visit) without friction, keeping plan relevant and increasing daily completion rate",
+      "uxSketch": "Each block card has a 3-dot menu (top-right) for Edit/Delete. Edit opens inline form (no modal) to change title/duration/subject. Long-press (mobile) or drag icon (desktop) enables reordering with smooth animation. Changes save instantly to localStorage.",
+      "dataModel": {
+        "key": "harmony_today_plan_v1",
+        "mutations": "REORDER, UPDATE_BLOCK, DELETE_BLOCK actions tracked",
+        "structure": {
+          "date": "2026-01-14",
+          "blocks": [
+            {"id": "abc", "order": 0, "lastEdited": "15:23"},
+            {"id": "def", "order": 1, "lastEdited": null}
+          ],
+          "editHistory": [
+            {"timestamp": "15:23", "action": "UPDATE_BLOCK", "blockId": "abc", "field": "durationMin", "oldValue": 60, "newValue": 45}
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "Reordering visually reflects immediately with <200ms animation, no flicker",
+        "Cannot delete the currently active block (show toast: 'Finish or pause this block first')",
+        "Undo button appears for 5 seconds after edit/delete (localStorage snapshot for rollback)"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 4,
+      "tier": "MVP",
+      "name": "Subject Analytics Dashboard",
+      "summary": "Weekly/monthly view of time spent per subject with visual breakdowns",
+      "userValue": "Identifies neglected subjects before exams, helps students balance study time, provides concrete data for self-reflection",
+      "uxSketch": "New '/stats' page with horizontal bar chart (Recharts) showing hours per subject this week. Color-coded bars match subject theme colors. Below chart: list of subjects with 'time this week', 'vs last week' (+12% green, -8% red), and trend sparkline. Filter toggles: This Week / This Month / All Time.",
+      "dataModel": {
+        "key": "subject_analytics_v2",
+        "structure": {
+          "subjects": [
+            {
+              "code": "MATH101",
+              "name": "Mathematics",
+              "color": "#6366f1",
+              "weeklyMinutes": {
+                "2026-W02": 180,
+                "2026-W03": 210
+              },
+              "monthlyMinutes": {
+                "2026-01": 450
+              },
+              "totalMinutes": 1200,
+              "lastStudied": "2026-01-14"
+            }
+          ],
+          "lastCalculated": "2026-01-14T15:30:00Z"
+        }
+      },
+      "acceptanceCriteria": [
+        "Updates automatically when a study block is completed (not on every render)",
+        "Handles subjects with zero time gracefully (shows '0h 0m' with muted styling, not error)",
+        "Export button downloads CSV with weekly breakdown for all subjects"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 5,
+      "tier": "MVP",
+      "name": "Study Streak Counter",
+      "summary": "Track consecutive days with at least one completed block, shown prominently on dashboard",
+      "userValue": "Builds habit momentum through gamification, provides extrinsic motivation to maintain consistency even on low-energy days",
+      "uxSketch": "Small flame icon 🔥 with number in top-right of dashboard header (e.g., '🔥 7 days'). Clicking shows modal with calendar heatmap (GitHub-style) of last 30 days, highlighting streak dates in gradient blue. Show 'longest streak' stat and encouraging message at streak milestones (7, 30, 100 days).",
+      "dataModel": {
+        "key": "study_streak_v1",
+        "structure": {
+          "currentStreak": 7,
+          "longestStreak": 14,
+          "streakStartDate": "2026-01-07",
+          "streakHistory": [
+            {"date": "2026-01-14", "completed": true, "blocksCompleted": 4},
+            {"date": "2026-01-13", "completed": true, "blocksCompleted": 3}
+          ],
+          "lastChecked": "2026-01-14"
+        }
+      },
+      "acceptanceCriteria": [
+        "Streak increments only when first block of day is completed (not on plan generation)",
+        "Resets to 0 if 24 hours pass with no completed blocks, shows 'Streak ended' notification",
+        "Streak persists across browser refreshes and is recoverable from localStorage"
+      ],
+      "complexity": "S"
+    },
+    {
+      "id": 6,
+      "tier": "MVP",
+      "name": "Quick Block Notes",
+      "summary": "Add text notes to any study block for reflection or key learnings",
+      "userValue": "Transforms passive time-tracking into active learning tool, helps retention, creates searchable study log for revision",
+      "uxSketch": "After completing a block, show optional 'Add notes?' prompt with expandable textarea (max 500 chars). Notes icon appears on completed blocks; clicking reopens textarea. On stats page, notes are searchable and filterable by subject/date.",
+      "dataModel": {
+        "key": "block_notes_v1",
+        "structure": {
+          "notes": [
+            {
+              "blockId": "abc123",
+              "subjectCode": "MATH101",
+              "content": "Covered integration by parts, struggled with trig substitution examples",
+              "createdAt": "2026-01-14T15:45:00Z",
+              "edited": false
+            }
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "Notes auto-save on blur (no explicit save button needed)",
+        "Character counter shows '127/500' when typing, turns red at 480 chars",
+        "Searching notes highlights matching text in yellow, returns blocks grouped by subject"
+      ],
+      "complexity": "S"
+    },
+    {
+      "id": 7,
+      "tier": "MVP",
+      "name": "Rollover Incomplete Tasks",
+      "summary": "Automatically suggest yesterday's incomplete blocks for today's plan",
+      "userValue": "Prevents tasks from being forgotten, reduces planning friction, maintains continuity across days even when plans go awry",
+      "uxSketch": "On dashboard load, if previous day had incomplete blocks, show banner (amber bg): '2 blocks from yesterday are incomplete. Add to today?' with 'Add All' and 'Review' buttons. Review opens checklist modal to select which blocks to migrate. Rolled-over blocks tagged with 'from yesterday' badge.",
+      "dataModel": {
+        "key": "rollover_queue_v1",
+        "structure": {
+          "pendingRollovers": [
+            {
+              "originalDate": "2026-01-13",
+              "blockId": "def456",
+              "title": "Physics homework",
+              "durationMin": 60,
+              "subjectCode": "PHYS201",
+              "dismissedByUser": false
+            }
+          ],
+          "lastProcessed": "2026-01-14T08:00:00Z"
+        }
+      },
+      "acceptanceCriteria": [
+        "Rollover prompt appears max once per day (dismissed state persists until next day)",
+        "Added blocks maintain original duration/subject but get new IDs and 'pending' status",
+        "User can permanently dismiss a rollover suggestion (removes from queue, doesn't re-prompt)"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 8,
+      "tier": "Near-term",
+      "name": "7-Day Week View",
+      "summary": "Preview and pre-plan upcoming week with drag-drop scheduling",
+      "userValue": "Enables proactive planning around known events (classes, exams), reduces daily decision fatigue, improves time management skills",
+      "uxSketch": "New '/planner' page with 7-column grid (Today through +6 days). Each day shows date, mood (editable), and list of planned blocks. Drag blocks between days to reschedule. Click empty space to add block to that day. Current day column has blue accent border.",
+      "dataModel": {
+        "key": "week_plan_v1",
+        "structure": {
+          "weekStarting": "2026-01-14",
+          "days": [
+            {
+              "date": "2026-01-14",
+              "isToday": true,
+              "plannedBlocks": [
+                {"id": "xyz", "title": "Math", "durationMin": 60, "subjectCode": "MATH101", "order": 0}
+              ],
+              "dayContext": {"mood": "high", "examPhase": "none", "specials": {}}
+            }
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "Dragging block across days updates both source and target day plans atomically",
+        "Cannot schedule blocks for past dates (they become read-only, grayed out)",
+        "Week view syncs with dashboard: editing today in week view reflects immediately on dashboard"
+      ],
+      "complexity": "L"
+    },
+    {
+      "id": 9,
+      "tier": "Near-term",
+      "name": "Exam Countdown Widget",
+      "summary": "Persistent countdown to next exam with progress indicator",
+      "userValue": "Creates urgency for exam preparation, helps students allocate time proportionally, reduces last-minute cramming",
+      "uxSketch": "Compact card on dashboard showing next exam subject, date, and days remaining (e.g., 'MATH101 Exam in 12 days'). Progress bar shows study time allocated vs recommended (based on subject weightage). Tapping opens exam details modal with syllabus checklist.",
+      "dataModel": {
+        "key": "exams_v1",
+        "structure": {
+          "exams": [
+            {
+              "id": "exam1",
+              "subjectCode": "MATH101",
+              "title": "Mid-Semester Exam",
+              "date": "2026-01-26",
+              "weightage": 30,
+              "syllabus": ["Integration", "Differentiation", "Limits"],
+              "studyTimeRecommended": 600,
+              "studyTimeCompleted": 240
+            }
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "Shows 'EXAM TODAY!' in red when exam date matches current date",
+        "Syllabus items are checkable; completion % shown in exam card",
+        "Automatically archives exams older than 7 days"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 10,
+      "tier": "Near-term",
+      "name": "Focus Mode",
+      "summary": "Distraction-free fullscreen view during active study block",
+      "userValue": "Improves concentration by hiding navigation and non-essential UI, signals 'deep work' mode to brain, reduces temptation to check stats mid-block",
+      "uxSketch": "Toggle switch in FocusSession component (top-right). When enabled: fullscreen, hides sidebar/header, shows only timer (large center), block title, and 'Exit Focus' button. Background slowly shifts hue over time (subtle animation). Escape key exits.",
+      "dataModel": {
+        "key": "focus_mode_prefs_v1",
+        "structure": {
+          "enabled": false,
+          "autoEnable": true,
+          "backgroundAnimation": "gradient-shift",
+          "sessionsFocused": 12,
+          "avgFocusDuration": 47
+        }
+      },
+      "acceptanceCriteria": [
+        "Entering focus mode saves scroll position and restores it on exit",
+        "Browser notifications are suppressed during focus mode (if permission granted)",
+        "Analytics track focus mode usage (sessions count, avg duration) to show in stats"
+      ],
+      "complexity": "S"
+    },
+    {
+      "id": 11,
+      "tier": "Near-term",
+      "name": "Energy Level Tracker",
+      "summary": "Log energy before each block to identify peak productivity times",
+      "userValue": "Helps students schedule hard subjects during high-energy windows, improves self-awareness, enables AI scheduling optimization in future",
+      "uxSketch": "Before starting block, 1-tap rating: 'How's your energy? 🔋Low / ⚡Medium / 🚀High'. Rating badge appears on completed block card. Stats page shows heatmap: time of day (rows) vs energy level (color intensity), highlighting personal peak hours.",
+      "dataModel": {
+        "key": "energy_logs_v1",
+        "structure": {
+          "logs": [
+            {
+              "blockId": "abc",
+              "timestamp": "2026-01-14T15:00:00Z",
+              "energyLevel": "high",
+              "timeOfDay": "15:00",
+              "performanceRating": null
+            }
+          ],
+          "patterns": {
+            "peakHours": ["09:00-11:00", "15:00-17:00"],
+            "lowHours": ["13:00-15:00"]
+          }
+        }
+      },
+      "acceptanceCriteria": [
+        "Skipping energy rating defaults to 'medium' (doesn't block starting block)",
+        "Heatmap requires minimum 7 days of data before showing patterns",
+        "Patterns update weekly and show notification: 'Your peak energy is 9-11am. Schedule hard subjects then!'"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 12,
+      "tier": "Near-term",
+      "name": "Data Export/Import",
+      "summary": "Download all app data as JSON, import to restore or transfer devices",
+      "userValue": "Provides data ownership, enables backup for peace of mind, allows migration between browsers/devices without cloud dependency",
+      "uxSketch": "Settings page has 'Backup Data' button → downloads 'harmony-backup-2026-01-14.json'. 'Restore Data' button opens file picker, validates JSON, shows preview of what will be imported (X subjects, Y study blocks, Z days of history), requires confirmation to overwrite.",
+      "dataModel": {
+        "key": "N/A",
+        "structure": {
+          "exportFormat": {
+            "version": "1.0",
+            "exportDate": "2026-01-14T16:00:00Z",
+            "data": {
+              "dayContexts": {},
+              "subjects": [],
+              "plans": {},
+              "notes": {},
+              "streaks": {},
+              "exams": {}
+            }
+          }
+        }
+      },
+      "acceptanceCriteria": [
+        "Export includes all localStorage keys, totals size, warns if >5MB",
+        "Import validates schema version, rejects incompatible formats with clear error message",
+        "Restore creates backup of current data before overwriting (stored as 'pre-restore-backup.json' in downloads)"
+      ],
+      "complexity": "S"
+    },
+    {
+      "id": 13,
+      "tier": "Near-term",
+      "name": "Custom Block Types",
+      "summary": "Define custom activity types beyond study (reading, project, lab) with unique styling",
+      "userValue": "Reflects real student schedules, improves visual scanning, enables type-specific analytics (e.g., time spent on projects vs lectures)",
+      "uxSketch": "Settings page has 'Block Types' section with list of built-in types (study, revision, exam, break) + 'Add Custom' button. Custom types have name, icon emoji, and color picker. When adding blocks, type dropdown shows all types. Block cards show type badge in top-left corner.",
+      "dataModel": {
+        "key": "block_types_v1",
+        "structure": {
+          "custom": [
+            {
+              "id": "type1",
+              "name": "Reading",
+              "emoji": "📚",
+              "color": "#8b5cf6",
+              "createdAt": "2026-01-14"
+            }
+          ],
+          "usage": {
+            "type1": 12,
+            "study": 45,
+            "revision": 8
+          }
+        }
+      },
+      "acceptanceCriteria": [
+        "Max 10 custom types (prevents UI clutter), attempting 11th shows error",
+        "Deleting a type prompts user to reassign existing blocks of that type",
+        "Stats page shows breakdown by type (pie chart) for last 30 days"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 14,
+      "tier": "Near-term",
+      "name": "Browser Notifications",
+      "summary": "Optional push notifications for block start, break end, and milestones",
+      "userValue": "Keeps students on schedule even when tab is not active, gently nudges back to study, celebrates achievements in real-time",
+      "uxSketch": "Settings page has notification toggle with granular options: 'Next block starting', 'Break ending in 1 min', 'Streak milestone', 'Daily goal achieved'. First enable prompts browser permission request. Notifications are brief (e.g., '⏰ Math block starts in 2 minutes') with app icon.",
+      "dataModel": {
+        "key": "notification_prefs_v1",
+        "structure": {
+          "enabled": true,
+          "types": {
+            "blockStart": true,
+            "breakEnd": true,
+            "milestones": true,
+            "dailyGoal": false
+          },
+          "permissionGranted": true,
+          "lastShown": "2026-01-14T15:55:00Z"
+        }
+      },
+      "acceptanceCriteria": [
+        "Notifications respect browser Do Not Disturb settings (detect and show fallback in-app toast)",
+        "Max 1 notification per 5 minutes (prevents spam if user adds many quick blocks)",
+        "Clicking notification focuses app tab and navigates to relevant page"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 15,
+      "tier": "Near-term",
+      "name": "Dark Mode",
+      "summary": "System-matched or manual dark color scheme for reduced eye strain",
+      "userValue": "Essential for late-night study sessions, reduces battery usage on OLED screens, modern UX expectation for productivity apps",
+      "uxSketch": "Settings page has theme toggle: 'Auto (system)' / 'Light' / 'Dark'. Dark mode uses charcoal backgrounds (#1f2937), white text, desaturated accent colors. All pastels have dark-mode equivalents (e.g., light blue → deep teal). Smooth transition animation when switching.",
+      "dataModel": {
+        "key": "theme_prefs_v1",
+        "structure": {
+          "mode": "auto",
+          "lastManualOverride": null
+        }
+      },
+      "acceptanceCriteria": [
+        "All text meets WCAG AA contrast ratios in both modes (min 4.5:1)",
+        "Charts/graphs adapt colors (light blues → darker blues in dark mode)",
+        "Switching themes doesn't cause layout shift or flash of unstyled content"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 16,
+      "tier": "Long-term",
+      "name": "Smart Scheduling Suggestions",
+      "summary": "AI recommends optimal times for subjects based on energy patterns and deadlines",
+      "userValue": "Reduces cognitive load of planning, leverages personal data for better outcomes, makes app feel intelligent and personalized",
+      "uxSketch": "Week view has 'Auto-schedule' button. Algorithm considers: subject priorities, energy patterns (from tracker), exam deadlines, available time slots, last-studied dates. Generates tentative plan with rationale tooltips (e.g., 'Math at 10am: your peak energy time'). User reviews and accepts/tweaks.",
+      "dataModel": {
+        "key": "scheduling_ai_v1",
+        "structure": {
+          "lastRun": "2026-01-14T08:00:00Z",
+          "preferences": {
+            "respectEnergyLevels": true,
+            "prioritizeExams": true,
+            "maxBlocksPerDay": 6,
+            "preferredSubjectRotation": "balanced"
+          },
+          "generatedPlan": {
+            "confidence": 0.85,
+            "conflicts": []
+          }
+        }
+      },
+      "acceptanceCriteria": [
+        "Never schedules blocks during user-defined blocked times (classes, sleep)",
+        "Explanation for each suggestion shown on hover (builds trust in AI)",
+        "Algorithm runs client-side in Web Worker (non-blocking), takes <2 seconds"
+      ],
+      "complexity": "L"
+    },
+    {
+      "id": 17,
+      "tier": "Long-term",
+      "name": "Spaced Repetition Planner",
+      "summary": "Track topics and auto-schedule review sessions at scientifically optimal intervals",
+      "userValue": "Maximizes long-term retention, prevents cramming, aligns with evidence-based learning science (Ebbinghaus forgetting curve)",
+      "uxSketch": "After completing block, prompt 'Mark topics for review?'. User adds tags (e.g., 'Integration', 'Newton's Laws'). App schedules review blocks at +1 day, +3 days, +7 days, +30 days. Review blocks are auto-generated, labeled 'Review: [topic]', and shown in distinct color (purple).",
+      "dataModel": {
+        "key": "spaced_repetition_v1",
+        "structure": {
+          "topics": [
+            {
+              "id": "topic1",
+              "name": "Integration by parts",
+              "subjectCode": "MATH101",
+              "firstStudied": "2026-01-14",
+              "reviewSchedule": [
+                {"due": "2026-01-15", "completed": true, "confidence": "high"},
+                {"due": "2026-01-17", "completed": false, "confidence": null}
+              ],
+              "easinessFactor": 2.5
+            }
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "Review blocks never override scheduled exam prep (lower priority)",
+        "User rates review confidence (easy/medium/hard); hard topics get shorter intervals",
+        "Dashboard widget shows 'X topics due for review today' with quick-add button"
+      ],
+      "complexity": "L"
+    },
+    {
+      "id": 18,
+      "tier": "Long-term",
+      "name": "Habit Tracker Integration",
+      "summary": "Track daily habits (exercise, reading, meditation) alongside study goals",
+      "userValue": "Holistic approach to student success, recognizes study performance depends on overall health, increases app stickiness",
+      "uxSketch": "New '/habits' page with list of habits (user-defined or suggested). Each habit has daily checkbox, streak count, and notes. Dashboard shows mini-widget with today's habit checkboxes. Stats page correlates habit completion with study performance (e.g., 'Days with morning exercise had 23% higher focus scores').",
+      "dataModel": {
+        "key": "habits_v1",
+        "structure": {
+          "habits": [
+            {
+              "id": "habit1",
+              "name": "Morning exercise",
+              "icon": "🏃",
+              "target": "daily",
+              "streak": 7,
+              "completions": [
+                {"date": "2026-01-14", "completed": true, "notes": "30 min run"}
+              ]
+            }
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "Habits are independent of study blocks (not part of plan generation)",
+        "Correlation analysis requires 14+ days of data with both habit and study logs",
+        "Max 5 active habits (focused habit-building, not overwhelming checklist)"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 19,
+      "tier": "Long-term",
+      "name": "Collaborative Study Groups",
+      "summary": "Create shared plans, see group members' progress, schedule group sessions",
+      "userValue": "Supports collaborative learning, adds accountability through peer visibility, addresses isolation of solo studying",
+      "uxSketch": "New 'Groups' page. User creates/joins groups with invite code. Group page shows members list, shared calendar, and leaderboard (optional). Group study blocks tagged 'Group: Math Study' appear in all members' plans. Real-time presence indicators show who's currently studying.",
+      "dataModel": {
+        "key": "study_groups_v1",
+        "structure": {
+          "groups": [
+            {
+              "id": "grp1",
+              "name": "Math Study Crew",
+              "members": [
+                {"userId": "user1", "name": "Alice", "lastActive": "2026-01-14T15:30:00Z"}
+              ],
+              "sharedBlocks": [
+                {"id": "shared1", "title": "Group homework review", "scheduledFor": "2026-01-15T18:00:00Z"}
+              ],
+              "leaderboardEnabled": true
+            }
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "Requires server backend (breaks v0.1 constraint, plan for v0.2+)",
+        "Privacy controls: user can hide progress from group or share only completion percentage",
+        "Group chat/comments scoped to specific study blocks (not general chat)"
+      ],
+      "complexity": "L"
+    },
+    {
+      "id": 20,
+      "tier": "Long-term",
+      "name": "Voice Commands",
+      "summary": "Hands-free control for starting/pausing/completing blocks via Web Speech API",
+      "userValue": "Useful during study (hands on keyboard/notes), accessibility benefit for motor impairments, feels futuristic and innovative",
+      "uxSketch": "Settings page has voice toggle. When enabled, mic icon appears in FocusSession. Say 'Start timer', 'Pause', 'Add 5 minutes', 'Mark complete' for actions. Visual feedback shows recognized command. Fallback to button UI if command not understood after 2 attempts.",
+      "dataModel": {
+        "key": "voice_prefs_v1",
+        "structure": {
+          "enabled": false,
+          "language": "en-US",
+          "commandHistory": [
+            {"timestamp": "2026-01-14T15:45:00Z", "command": "start timer", "success": true}
+          ],
+          "accuracy": 0.92
+        }
+      },
+      "acceptanceCriteria": [
+        "Works offline (Web Speech API has offline mode on supported browsers)",
+        "Clear visual indicator when mic is listening (pulse animation around icon)",
+        "Privacy note in settings: 'Commands processed locally, never sent to servers'"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 21,
+      "tier": "Experimental",
+      "name": "Pomodoro Variations",
+      "summary": "Preset timer templates (25/5, 50/10, 90/20) and custom cycles",
+      "userValue": "Accommodates different learning styles and task types, enables experimentation to find optimal rhythm",
+      "uxSketch": "Settings page has 'Timer Presets' section with radio buttons for built-in patterns + 'Custom' option with duration inputs. Selected preset auto-applies to new blocks. Dashboard shows active preset badge (e.g., '🍅 Pomodoro' or '⏱️ Custom').",
+      "dataModel": {
+        "key": "timer_presets_v1",
+        "structure": {
+          "active": "pomodoro",
+          "presets": {
+            "pomodoro": {"work": 25, "break": 5},
+            "deep": {"work": 90, "break": 20},
+            "sprint": {"work": 15, "break": 3},
+            "custom": {"work": 45, "break": 10}
+          }
+        }
+      },
+      "acceptanceCriteria": [
+        "Changing preset mid-block prompts confirmation (doesn't auto-apply)",
+        "Stats track which preset yields highest completion rates",
+        "Custom presets validate: work min 5, break min 1, work max 120"
+      ],
+      "complexity": "S"
+    },
+    {
+      "id": 22,
+      "tier": "Experimental",
+      "name": "Gamification System",
+      "summary": "Points, levels, badges for milestones with leaderboard (local)",
+      "userValue": "Extrinsic motivation for engagement, makes studying feel rewarding, appeals to achievement-oriented students",
+      "uxSketch": "Profile page shows XP bar, current level (e.g., 'Level 7 Scholar'), and earned badges grid. Earn XP for: completing blocks (10), maintaining streaks (50/week), studying all subjects (25). Badges unlock at milestones (100 blocks, 30-day streak). No global leaderboard (keeps competitive but not stressful).",
+      "dataModel": {
+        "key": "gamification_v1",
+        "structure": {
+          "xp": 1250,
+          "level": 7,
+          "xpToNext": 300,
+          "badges": [
+            {"id": "badge1", "name": "Century", "description": "Complete 100 blocks", "unlockedAt": "2026-01-10"}
+          ],
+          "pointsBreakdown": {
+            "blocksCompleted": 950,
+            "streakBonus": 200,
+            "varietyBonus": 100
+          }
+        }
+      },
+      "acceptanceCriteria": [
+        "XP gains are transparent (toast shows '+10 XP' after block completion)",
+        "Leveling curve is logarithmic (early levels fast, later levels slower, prevents grind)",
+        "Opt-out in settings for users who dislike gamification (hides all XP/badges UI)"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 23,
+      "tier": "Experimental",
+      "name": "Study Music Playlists",
+      "summary": "Curated playlists or Spotify integration for background music during blocks",
+      "userValue": "Convenient access to focus music, improves concentration for some learners, reduces friction of finding music separately",
+      "uxSketch": "FocusSession has music note icon (bottom-right). Clicking shows playlist menu: 'Lo-fi Beats', 'Classical Focus', 'Ambient', 'Binaural Beats', or 'Spotify' (if connected). Music plays in background, volume adjustable. Auto-pauses during breaks.",
+      "dataModel": {
+        "key": "music_prefs_v1",
+        "structure": {
+          "enabled": true,
+          "source": "curated",
+          "activePlaylist": "lofi",
+          "volume": 0.4,
+          "spotifyConnected": false,
+          "spotifyPlaylistId": null
+        }
+      },
+      "acceptanceCriteria": [
+        "Curated playlists are embedded YouTube/SoundCloud (no copyright issues)",
+        "Music respects device media keys (play/pause/skip work as expected)",
+        "Spotify integration uses OAuth, reads only playlists (no write access)"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 24,
+      "tier": "Experimental",
+      "name": "AI Study Tips",
+      "summary": "Personalized recommendations based on study patterns and performance",
+      "userValue": "Actionable advice without needing external resources, feels like personal tutor, increases value of tracked data",
+      "uxSketch": "Dashboard widget (collapsible) shows 1-2 tips daily, e.g., 'Try studying Math in mornings when your energy is highest' or 'You haven't reviewed Integration in 5 days—schedule a review block'. Tips rotate based on recent data, not repetitive.",
+      "dataModel": {
+        "key": "ai_insights_v1",
+        "structure": {
+          "tips": [
+            {
+              "id": "tip1",
+              "text": "Your Math completion rate is 85%, higher than your average. Keep it up!",
+              "type": "encouragement",
+              "basedOn": ["subject_analytics", "completion_rates"],
+              "shownAt": "2026-01-14T08:00:00Z",
+              "dismissed": false
+            }
+          ],
+          "lastGenerated": "2026-01-14T08:00:00Z"
+        }
+      },
+      "acceptanceCriteria": [
+        "Tips are generated client-side (no server dependency, uses rule-based logic)",
+        "Never shows same tip twice within 7 days (prevents annoyance)",
+        "Tips have 'Why this tip?' explanation on hover (transparency)"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 25,
+      "tier": "Experimental",
+      "name": "Flashcard Builder",
+      "summary": "Create and quiz flashcards tied to subjects, integrated with spaced repetition",
+      "userValue": "All-in-one study tool (no need for Anki/Quizlet), seamless workflow from study block to review, leverages existing subject structure",
+      "uxSketch": "New '/flashcards' page. Create decks per subject, add cards (front/back text + optional image). Study mode shows cards in random order, user rates difficulty (easy/medium/hard). Cards with 'hard' rating appear more frequently. Progress tracked in stats.",
+      "dataModel": {
+        "key": "flashcards_v1",
+        "structure": {
+          "decks": [
+            {
+              "id": "deck1",
+              "subjectCode": "MATH101",
+              "name": "Integration formulas",
+              "cards": [
+                {
+                  "id": "card1",
+                  "front": "∫ sin(x) dx = ?",
+                  "back": "-cos(x) + C",
+                  "lastReviewed": "2026-01-14",
+                  "easiness": 2.5,
+                  "reviewCount": 3
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "Markdown support for card text (formulas, bold/italic)",
+        "Image upload for visual cards (stored as base64, max 500KB)",
+        "Export/import deck as JSON for sharing (no vendor lock-in)"
+      ],
+      "complexity": "L"
+    },
+    {
+      "id": 26,
+      "tier": "Experimental",
+      "name": "Mind Map Tool",
+      "summary": "Visual concept mapping for subjects with auto-save and export",
+      "userValue": "Supports visual learners, helps organize complex topics, creates shareable study aids",
+      "uxSketch": "New '/mindmap' page with canvas. Add nodes (bubbles with text), drag to reposition, draw connections. Each node color-coded by subject. Toolbar: add node, delete, export as PNG/SVG. Auto-saves to localStorage every 5 seconds.",
+      "dataModel": {
+        "key": "mindmaps_v1",
+        "structure": {
+          "maps": [
+            {
+              "id": "map1",
+              "title": "Calculus concepts",
+              "subjectCode": "MATH101",
+              "nodes": [
+                {"id": "n1", "text": "Integration", "x": 100, "y": 50, "color": "#6366f1"}
+              ],
+              "edges": [
+                {"from": "n1", "to": "n2"}
+              ],
+              "lastEdited": "2026-01-14T16:00:00Z"
+            }
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "Zooming/panning with mouse/touch gestures (pinch, drag)",
+        "Undo/redo stack (last 20 actions)",
+        "Export includes timestamp and subject metadata in image corner"
+      ],
+      "complexity": "L"
+    },
+    {
+      "id": 27,
+      "tier": "Experimental",
+      "name": "Voice Journaling",
+      "summary": "Record audio reflections after study blocks for deeper processing",
+      "userValue": "Lower friction than typing, captures nuanced feelings, supports auditory learners, creates rich reflection log",
+      "uxSketch": "After completing block, 'Record Reflection' button alongside text notes. Max 2 minutes recording. Audio stored as blob in localStorage (warns if quota reached). Playback with waveform visualization. Transcription optional (uses Web Speech API).",
+      "dataModel": {
+        "key": "voice_journals_v1",
+        "structure": {
+          "recordings": [
+            {
+              "blockId": "abc",
+              "timestamp": "2026-01-14T16:00:00Z",
+              "duration": 87,
+              "audioBlob": "data:audio/webm;base64,...",
+              "transcription": "I really struggled with the integration problems today...",
+              "size": 245000
+            }
+          ],
+          "totalSize": 2450000,
+          "quotaWarning": false
+        }
+      },
+      "acceptanceCriteria": [
+        "Shows storage usage (X MB / Y MB quota) before recording",
+        "Auto-stops at 2 minutes with fade-out animation",
+        "Delete confirmation required for recordings (prevents accidental loss)"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 28,
+      "tier": "Experimental",
+      "name": "Biometric Integration",
+      "summary": "Track heart rate/HRV during study via Bluetooth wearables",
+      "userValue": "Objective stress indicators, correlate physiological data with focus, optimize break timing based on fatigue signals",
+      "uxSketch": "Settings page has 'Connect Wearable' button (Web Bluetooth API). During study, small HR widget in FocusSession (e.g., '❤️ 72 bpm'). Stats page shows HR trends over time, flags high-stress study sessions for reflection.",
+      "dataModel": {
+        "key": "biometrics_v1",
+        "structure": {
+          "deviceConnected": true,
+          "deviceName": "Fitbit Charge 5",
+          "readings": [
+            {
+              "blockId": "abc",
+              "timestamp": "2026-01-14T15:30:00Z",
+              "heartRate": 72,
+              "hrv": 45
+            }
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "Works only with Bluetooth-enabled devices (web constraint, not all wearables supported)",
+        "Data never leaves device (privacy guarantee in UI)",
+        "Graceful degradation if device disconnects mid-session"
+      ],
+      "complexity": "L"
+    },
+    {
+      "id": 29,
+      "tier": "Experimental",
+      "name": "AI Tutor Chatbot",
+      "summary": "Ask study questions, get explanations via OpenAI/Anthropic API",
+      "userValue": "Instant help without leaving app, reduces context-switching to Google/ChatGPT, feels like having study buddy",
+      "uxSketch": "Floating chat bubble (bottom-right). Click to expand chat panel. Type question (e.g., 'Explain integration by parts'), get AI response. Responses can be saved as notes, referenced later. Optional: limit to study-related queries.",
+      "dataModel": {
+        "key": "ai_chat_v1",
+        "structure": {
+          "history": [
+            {
+              "timestamp": "2026-01-14T15:45:00Z",
+              "question": "How does integration by parts work?",
+              "response": "Integration by parts is...",
+              "model": "gpt-4-turbo",
+              "saved": false
+            }
+          ],
+          "apiKey": null,
+          "quotaRemaining": 0
+        }
+      },
+      "acceptanceCriteria": [
+        "Requires user-provided API key (no costs to developer)",
+        "Rate limits enforced (max 10 questions/day on free tier)",
+        "Disclaimer: 'AI may make mistakes. Verify important answers.'"
+      ],
+      "complexity": "L"
+    },
+    {
+      "id": 30,
+      "tier": "Experimental",
+      "name": "VR Study Environment",
+      "summary": "Immersive 3D study room via WebXR for deep focus",
+      "userValue": "Blocks real-world distractions, novelty factor increases engagement, future-forward feature for brand differentiation",
+      "uxSketch": "Settings page has 'Enter VR' button (requires VR headset). 3D environment shows floating timer, note-taking panel, and ambient scene (forest/library/space). Hand controllers for navigation. Exit VR updates progress as normal.",
+      "dataModel": {
+        "key": "vr_prefs_v1",
+        "structure": {
+          "enabled": false,
+          "environment": "library",
+          "vr_sessions": 2,
+          "avgSessionDuration": 45,
+          "lastUsed": "2026-01-14"
+        }
+      },
+      "acceptanceCriteria": [
+        "WebXR API support detection (show 'VR not supported' on incompatible browsers)",
+        "Lightweight 3D models (<5MB) for fast loading",
+        "Motion sickness warning in first-time flow"
+      ],
+      "complexity": "L"
+    },
+    {
+      "id": 31,
+      "tier": "MVP",
+      "name": "Keyboard Shortcuts",
+      "summary": "Power-user shortcuts for common actions (space = pause, n = next block)",
+      "userValue": "Increases efficiency for frequent users, reduces mouse dependency, modern productivity app standard",
+      "uxSketch": "Settings page lists all shortcuts with rebind option. In-app: pressing '?' opens shortcut cheatsheet overlay. Shortcuts work globally except when typing in input fields. Visual feedback on trigger (e.g., button flash).",
+      "dataModel": {
+        "key": "shortcuts_v1",
+        "structure": {
+          "bindings": {
+            "pauseTimer": "Space",
+            "nextBlock": "n",
+            "previousBlock": "p",
+            "openSettings": "Cmd+,",
+            "focusMode": "f"
+          },
+          "customized": false
+        }
+      },
+      "acceptanceCriteria": [
+        "Shortcuts don't fire when modal/dropdown is open (scope awareness)",
+        "Rebind detects conflicts (e.g., 'n' already used) and warns user",
+        "Works consistently across all browsers (test Safari quirks)"
+      ],
+      "complexity": "S"
+    },
+    {
+      "id": 32,
+      "tier": "MVP",
+      "name": "Offline Mode Indicator",
+      "summary": "Detect offline state, show banner, ensure localStorage operations continue",
+      "userValue": "Transparency about app state, prevents confusion if network flickers, reinforces 'works offline' value proposition",
+      "uxSketch": "Top banner (yellow bg) appears when navigator.onLine = false: 'You're offline. Changes saved locally.' Syncs when back online (future feature). Banner auto-dismisses after 3 seconds once reconnected.",
+      "dataModel": {
+        "key": "N/A",
+        "structure": "None (uses navigator.onLine API)"
+      },
+      "acceptanceCriteria": [
+        "Detects offline within 2 seconds of network drop",
+        "All localStorage writes succeed during offline (no feature degradation)",
+        "Banner doesn't appear on initial load if offline (only on state change)"
+      ],
+      "complexity": "S"
+    },
+    {
+      "id": 33,
+      "tier": "Near-term",
+      "name": "Weekly Report Email",
+      "summary": "Auto-generate summary email with stats, achievements, and next week's goals",
+      "userValue": "Structured reflection opportunity, shareable with parents/mentors, creates accountability loop",
+      "uxSketch": "Settings page has email input + 'Send weekly report' toggle. Every Sunday 8pm, generates HTML email with: hours studied (chart), subjects breakdown, streaks, achievements. Sent via Resend/SendGrid (requires backend).",
+      "dataModel": {
+        "key": "email_reports_v1",
+        "structure": {
+          "email": "student@example.com",
+          "enabled": true,
+          "timezone": "Asia/Kolkata",
+          "lastSent": "2026-01-12T20:00:00Z"
+        }
+      },
+      "acceptanceCriteria": [
+        "Requires server (violates v0.1 constraint, plan for v0.2+)",
+        "Email includes unsubscribe link (compliance)",
+        "Falls back to downloadable PDF if email fails"
+      ],
+      "complexity": "L"
+    },
+    {
+      "id": 34,
+      "tier": "Near-term",
+      "name": "Goal Setting System",
+      "summary": "Set weekly/monthly study hour targets with visual progress",
+      "userValue": "Concrete targets increase motivation, provides milestone structure, enables self-evaluation",
+      "uxSketch": "Dashboard has 'Goals' card showing weekly target (e.g., '12h / 15h this week'). Progress bar fills as blocks complete. Settings page to adjust targets. Celebrates on achievement with confetti + badge unlock.",
+      "dataModel": {
+        "key": "goals_v1",
+        "structure": {
+          "weekly": {
+            "target": 15,
+            "unit": "hours",
+            "current": 12,
+            "weekStarting": "2026-01-13"
+          },
+          "monthly": {
+            "target": 60,
+            "unit": "hours",
+            "current": 45
+          }
+        }
+      },
+      "acceptanceCriteria": [
+        "Progress persists across weeks (historical data retained)",
+        "Targets adjustable mid-week (doesn't reset progress)",
+        "Shows percentage and absolute values for clarity"
+      ],
+      "complexity": "S"
+    },
+    {
+      "id": 35,
+      "tier": "Near-term",
+      "name": "PDF Annotation Tool",
+      "summary": "Open study PDFs in-app, highlight/annotate, save notes linked to subjects",
+      "userValue": "Centralized study ecosystem, notes tied to materials, reduces app-switching, better organization",
+      "uxSketch": "New '/resources' page. Upload PDFs, they appear in subject-organized list. Click to open viewer with highlight/text/drawing tools. Annotations saved as overlay, original PDF untouched. Export annotated PDF.",
+      "dataModel": {
+        "key": "pdf_annotations_v1",
+        "structure": {
+          "files": [
+            {
+              "id": "pdf1",
+              "name": "Calculus Chapter 3.pdf",
+              "subjectCode": "MATH101",
+              "url": "blob:...",
+              "annotations": [
+                {"page": 2, "type": "highlight", "rect": [10, 20, 100, 30], "color": "yellow"}
+              ],
+              "uploadedAt": "2026-01-14"
+            }
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "PDFs stored in localStorage (quota warning at 5MB+)",
+        "Annotation tools work on touch (mobile-friendly)",
+        "Export merges annotations into PDF (uses pdf-lib)"
+      ],
+      "complexity": "L"
+    },
+    {
+      "id": 36,
+      "tier": "Long-term",
+      "name": "Calendar Sync",
+      "summary": "Two-way sync with Google Calendar for unified schedule view",
+      "userValue": "Avoids double-entry, surfaces conflicts (class overlaps study block), leverages existing calendar habits",
+      "uxSketch": "Settings page has 'Connect Google Calendar' button (OAuth flow). Study blocks appear in calendar as events. Calendar events (classes) auto-block those times in planner. Color-coded by source (study vs class).",
+      "dataModel": {
+        "key": "calendar_sync_v1",
+        "structure": {
+          "provider": "google",
+          "connected": true,
+          "calendarId": "primary",
+          "lastSync": "2026-01-14T16:00:00Z",
+          "syncedEvents": [
+            {"id": "evt1", "title": "Physics lecture", "start": "2026-01-15T10:00:00Z", "source": "calendar"}
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "Requires server for OAuth (violates v0.1 constraint)",
+        "Handles conflicts gracefully (warns, doesn't auto-delete)",
+        "Sync runs max every 15 minutes (rate limit respect)"
+      ],
+      "complexity": "L"
+    },
+    {
+      "id": 37,
+      "tier": "Long-term",
+      "name": "Video Lecture Time-stamping",
+      "summary": "Embed YouTube/Vimeo videos, add bookmarks for key concepts",
+      "userValue": "Quick review without re-watching full lectures, builds personalized study index, increases value of recorded lectures",
+      "uxSketch": "New '/videos' page. Paste video URL, it embeds with player. Click 'Add bookmark' at current timestamp, label it (e.g., 'Integration example'). Bookmarks list below video, clicking jumps to timestamp. Notes field per bookmark.",
+      "dataModel": {
+        "key": "video_bookmarks_v1",
+        "structure": {
+          "videos": [
+            {
+              "id": "vid1",
+              "url": "https://youtube.com/watch?v=...",
+              "title": "Calculus Lecture 3",
+              "subjectCode": "MATH101",
+              "bookmarks": [
+                {"timestamp": 325, "label": "Integration by parts", "notes": "Watch again before exam"}
+              ]
+            }
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "Supports YouTube, Vimeo, and direct MP4 links",
+        "Bookmarks exportable as text (chapter markers format)",
+        "Embed respects platform ToS (no download feature)"
+      ],
+      "complexity": "M"
+    },
+    {
+      "id": 38,
+      "tier": "Experimental",
+      "name": "Study Buddy Matching",
+      "summary": "Find peers studying same subjects, schedule joint study sessions",
+      "userValue": "Combats loneliness, enables peer learning, increases app virality through network effects",
+      "uxSketch": "New '/find-buddies' page. Enter subjects, availability, learning style. Algorithm suggests matches (anonymized profiles). Send connection request, chat to coordinate study times. Opt-in only.",
+      "dataModel": {
+        "key": "buddy_matching_v1",
+        "structure": {
+          "profile": {
+            "subjects": ["MATH101", "PHYS201"],
+            "availability": ["weekday-evenings", "weekend-mornings"],
+            "learningStyle": "collaborative"
+          },
+          "matches": [
+            {"userId": "user2", "commonSubjects": 2, "matchScore": 0.85}
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "Requires server + moderation (violates v0.1 constraint)",
+        "Privacy controls: can hide profile/disconnect anytime",
+        "Safety: report/block features, community guidelines"
+      ],
+      "complexity": "L"
+    },
+    {
+      "id": 39,
+      "tier": "Experimental",
+      "name": "Resource Library",
+      "summary": "Curated collection of study guides, cheat sheets, exam tips per subject",
+      "userValue": "Reduces time searching web for resources, quality-controlled content, increases app utility beyond tracking",
+      "uxSketch": "New '/library' page with subject tabs. Each tab shows cards for resources (PDF, article, video). Filterable by resource type and difficulty. Upvote/downvote system for quality. Admins curate initial set, users suggest additions.",
+      "dataModel": {
+        "key": "resource_library_v1",
+        "structure": {
+          "resources": [
+            {
+              "id": "res1",
+              "title": "Integration cheat sheet",
+              "type": "pdf",
+              "url": "https://...",
+              "subjectCode": "MATH101",
+              "upvotes": 24,
+              "curatedBy": "admin"
+            }
+          ]
+        }
+      },
+      "acceptanceCriteria": [
+        "Resources are links only (no reuploading copyrighted content)",
+        "Requires moderation backend (violates v0.1 constraint)",
+        "Broken link detection (auto-checks URLs weekly)"
+      ],
+      "complexity": "L"
+    },
+    {
+      "id": 40,
+      "tier": "Experimental",
+      "name": "Accessibility Audit Mode",
+      "summary": "Developer tool to check WCAG compliance, suggests fixes",
+      "userValue": "Ensures app usable by all students including those with disabilities, improves SEO, legal compliance for institutions",
+      "uxSketch": "Hidden settings page (accessible via URL param ?audit=1). Runs axe-core, shows violations list with severity. Clicking item highlights problematic element. Inline suggestions (e.g., 'Add aria-label to button').",
+      "dataModel": {
+        "key": "N/A",
+        "structure": "Runtime only, no persistence"
+      },
+      "acceptanceCriteria": [
+        "Only accessible in dev mode (not exposed to end users)",
+        "Checks include: contrast ratios, keyboard nav, screen reader labels",
+        "Generates printable report for stakeholders"
+      ],
+      "complexity": "M"
+    }
+  ],
+  
+  "implementationPlans": [
+    {
+      "featureId": 1,
+      "featureName": "Daily Progress Tracker",
+      "files": [
+        "app/dashboard/components/ProgressRing.tsx (new)",
+        "app/dashboard/components/ProgressModal.tsx (new)",
+        "app/dashboard/page.tsx (modify: import ProgressRing)",
+        "hooks/useProgressTracking.ts (new)",
+        "lib/progress.ts (new: calculation utilities)"
+      ],
+      "keyComponents": [
+        {
+          "name": "ProgressRing",
+          "signature": "function ProgressRing({ percentage, completedBlocks, totalBlocks }: { percentage: number; completedBlocks: number; totalBlocks: number }): JSX.Element",
+          "description": "SVG-based circular progress indicator with animated stroke"
+        },
+        {
+          "name": "useProgressTracking",
+          "signature": "function useProgressTracking(): { percentage: number; completedBlocks: number; totalBlocks: number; projectedFinish: string | null }",
+          "description": "Hook that calculates progress from today's plan, updates reactively"
+        },
+        {
+          "name": "calculateProjectedFinish",
+          "signature": "function calculateProjectedFinish(remainingBlocks: StudyBlock[], currentTime: Date): string",
+          "description": "Sums remaining block durations, adds current time, returns HH:MM format"
+        }
+      ],
+      "edgeCases": [
+        "All blocks deleted mid-day: show 0% gracefully, not NaN",
+        "New blocks added after 100% reached: recalculate percentage down",
+        "Multiple blocks completed in same minute: ensure state batches correctly"
+      ],
+      "tests": [
+        "Unit: calculateProjectedFinish handles 0 blocks, returns 'No blocks'",
+        "Unit: percentage calculation rounds to 1 decimal (not 66.666666...)",
+        "Integration: clicking ring opens modal, modal data matches dashboard"
+      ],
+      "performance": "SVG animation uses CSS transform (GPU-accelerated), no reflow",
+      "security": "No external data, purely computed from localStorage"
+    },
+    {
+      "featureId": 2,
+      "featureName": "Smart Break Reminders",
+      "files": [
+        "app/dashboard/components/BreakScreen.tsx (new)",
+        "hooks/useBreakTimer.ts (new)",
+        "app/dashboard/page.tsx (modify: conditionally render BreakScreen)",
+        "lib/breaks.ts (new: activity suggestions, config)"
+      ],
+      "keyComponents": [
+        {
+          "name": "BreakScreen",
+          "signature": "function BreakScreen({ duration, onComplete, onSkip }: { duration: number; onComplete: () => void; onSkip: () => void }): JSX.Element",
+          "description": "Fullscreen overlay with countdown, activity suggestion, skip button"
+        },
+        {
+          "name": "useBreakTimer",
+          "signature": "function useBreakTimer(duration: number, onComplete: () => void): { secondsLeft: number; canSkip: boolean }",
+          "description": "Countdown hook with 60-second minimum enforcement"
+        },
+        {
+          "name": "getRandomActivity",
+          "signature": "function getRandomActivity(): string",
+          "description": "Returns random suggestion from predefined list"
+        }
+      ],
+      "edgeCases": [
+        "User closes tab during break: resume countdown on return (persist timestamp)",
+        "User skips 3+ breaks: show nudge message on 4th skip attempt",
+        "Break duration extends beyond next block start time: warn user"
+      ],
+      "tests": [
+        "Unit: useBreakTimer prevents skip before 60 seconds",
+        "Integration: completing break updates skipCount in localStorage",
+        "E2E: break screen dismisses on completion, returns to dashboard"
+      ],
+      "performance": "Countdown uses setInterval (cleared on unmount), no re-render spam",
+      "security": "Break config stored locally, no PII"
+    },
+    {
+      "featureId": 3,
+      "featureName": "Inline Plan Editor",
+      "files": [
+        "app/dashboard/components/BlockCard.tsx (modify: add edit/delete UI)",
+        "app/dashboard/components/BlockEditor.tsx (new: inline form)",
+        "hooks/useTodayPlan.ts (modify: add updateBlock action)",
+        "lib/planMutations.ts (new: REORDER, UPDATE, DELETE logic)"
+      ],
+      "keyComponents": [
+        {
+          "name": "BlockCard",
+          "signature": "function BlockCard({ block, onEdit, onDelete, onReorder }: { block: StudyBlock; onEdit: (id: string) => void; onDelete: (id: string) => void; onReorder: (dragIndex: number, hoverIndex: number) => void }): JSX.Element",
+          "description": "Block display with 3-dot menu, drag handle, inline edit mode"
+        },
+        {
+          "name": "updateBlock",
+          "signature": "function updateBlock(blockId: string, updates: Partial<StudyBlock>): void",
+          "description": "Mutates block in plan, saves edit history to localStorage"
+        },
+        {
+          "name": "reorderBlocks",
+          "signature": "function reorderBlocks(dragIndex: number, hoverIndex: number): void",
+          "description": "Swaps block positions with animation, persists order"
+        }
+      ],
+      "edgeCases": [
+        "Editing active block: disable subject change (could break timer)",
+        "Reordering while FocusSession open: show warning modal",
+        "Rapid edit/undo/edit: debounce localStorage writes to avoid quota thrash"
+      ],
+      "tests": [
+        "Unit: updateBlock validates duration > 0, < 180 minutes",
+        "Integration: reorder updates order field correctly",
+        "E2E: undo button restores previous state within 5 seconds"
+      ],
+      "performance": "Drag animation uses Framer Motion (GPU-optimized)",
+      "security": "Edit history capped at 50 entries (prevent localStorage bloat)"
+    },
+    {
+      "featureId": 4,
+      "featureName": "Subject Analytics Dashboard",
+      "files": [
+        "app/stats/page.tsx (new)",
+        "app/stats/components/SubjectChart.tsx (new)",
+        "app/stats/components/SubjectList.tsx (new)",
+        "hooks/useSubjectAnalytics.ts (new)",
+        "lib/analytics.ts (new: aggregation logic)"
+      ],
+      "keyComponents": [
+        {
+          "name": "SubjectChart",
+          "signature": "function SubjectChart({ data, period }: { data: SubjectData[]; period: 'week' | 'month' }): JSX.Element",
+          "description": "Recharts BarChart with subject hours, color-coded bars"
+        },
+        {
+          "name": "useSubjectAnalytics",
+          "signature": "function useSubjectAnalytics(period: string): { subjects: SubjectData[]; loading: boolean }",
+          "description": "Aggregates completed blocks by subject for given period"
+        },
+        {
+          "name": "aggregateBySubject",
+          "signature": "function aggregateBySubject(blocks: StudyBlock[]): Record<string, number>",
+          "description": "Groups blocks by subjectCode, sums durations"
+        }
+      ],
+      "edgeCases": [
+        "No data for selected period: show empty state with illustration",
+        "Subject deleted but has historical data: show as 'Unknown Subject'",
+        "Week spans two months: correctly filter blocks by date range"
+      ],
+      "tests": [
+        "Unit: aggregateBySubject handles empty array, returns {}",
+        "Integration: changing period filter updates chart within 200ms",
+        "E2E: export CSV contains all subjects with correct totals"
+      ],
+      "performance": "Aggregation cached in memory, recalculates only on block completion",
+      "security": "CSV export sanitizes subject names (no XSS via malicious subject names)"
+    },
+    {
+      "featureId": 5,
+      "featureName": "Study Streak Counter",
+      "files": [
+        "app/dashboard/components/StreakBadge.tsx (new)",
+        "app/dashboard/components/StreakModal.tsx (new)",
+        "hooks/useStudyStreak.ts (new)",
+        "lib/streaks.ts (new: calculation, validation)"
+      ],
+      "keyComponents": [
+        {
+          "name": "StreakBadge",
+          "signature": "function StreakBadge({ currentStreak }: { currentStreak: number }): JSX.Element",
+          "description": "Flame icon with streak number, clickable to open modal"
+        },
+        {
+          "name": "useStudyStreak",
+          "signature": "function useStudyStreak(): { currentStreak: number; longestStreak: number; streakHistory: StreakDay[] }",
+          "description": "Loads streak from localStorage, validates daily"
+        },
+        {
+          "name": "validateStreak",
+          "signature": "function validateStreak(lastChecked: string, currentDate: string): boolean",
+          "description": "Returns false if >24 hours since last completed block"
+        }
+      ],
+      "edgeCases": [
+        "User completes blocks at 11:59pm and 12:01am: both count as separate days",
+        "Clock changes (DST, timezone travel): use UTC for consistency",
+        "First-time user: streak starts at 0, increments to 1 on first completion"
+      ],
+      "tests": [
+        "Unit: validateStreak returns false if gap > 24 hours",
+        "Integration: completing first block of day increments streak",
+        "E2E: streak modal shows calendar heatmap with correct highlighted dates"
+      ],
+      "performance": "Heatmap renders max 30 days (not full history), lazy loads on modal open",
+      "security": "Streak data tamper-resistant (validates via completion timestamps)"
+    },
+    {
+      "featureId": 6,
+      "featureName": "Quick Block Notes",
+      "files": [
+        "app/dashboard/components/NotesPrompt.tsx (new)",
+        "app/dashboard/components/NotesViewer.tsx (new)",
+        "hooks/useBlockNotes.ts (new)",
+        "lib/notes.ts (new: CRUD operations, search)"
+      ],
+      "keyComponents": [
+        {
+          "name": "NotesPrompt",
+          "signature": "function NotesPrompt({ blockId, onSave, onDismiss }: { blockId: string; onSave: (content: string) => void; onDismiss: () => void }): JSX.Element",
+          "description": "Textarea with character counter, auto-save on blur"
+        },
+        {
+          "name": "useBlockNotes",
+          "signature": "function useBlockNotes(): { notes: BlockNote[]; addNote: (blockId: string, content: string) => void; searchNotes: (query: string) => BlockNote[] }",
+          "description": "Manages notes in localStorage, provides search"
+        },
+        {
+          "name": "searchNotes",
+          "signature": "function searchNotes(notes: BlockNote[], query: string): BlockNote[]",
+          "description": "Case-insensitive content search, returns matching notes"
+        }
+      ],
+      "edgeCases": [
+        "Empty note (whitespace only): don't save, dismiss prompt",
+        "Note exceeds 500 chars: truncate with ellipsis, show warning",
+        "Editing old note: preserve original createdAt, set edited flag"
+      ],
+      "tests": [
+        "Unit: searchNotes handles special regex chars in query",
+        "Integration: auto-save triggers on blur, not on every keystroke",
+        "E2E: search highlights matching text in yellow"
+      ],
+      "performance": "Search debounced (300ms), doesn't block UI",
+      "security": "Notes sanitized (no HTML injection), displayed as plain text"
+    },
+    {
+      "featureId": 7,
+      "featureName": "Rollover Incomplete Tasks",
+      "files": [
+        "app/dashboard/components/RolloverBanner.tsx (new)",
+        "app/dashboard/components/RolloverModal.tsx (new)",
+        "hooks/useRollover.ts (new)",
+        "lib/rollover.ts (new: detection, migration logic)"
+      ],
+      "keyComponents": [
+        {
+          "name": "RolloverBanner",
+          "signature": "function RolloverBanner({ count, onAddAll, onReview }: { count: number; onAddAll: () => void; onReview: () => void }): JSX.Element",
+          "description": "Amber banner at top of dashboard, dismissable"
+        },
+        {
+          "name": "useRollover",
+          "signature": "function useRollover(): { pendingRollovers: StudyBlock[]; addAllToToday: () => void; dismissRollover: (blockId: string) => void }",
+          "description": "Detects incomplete blocks from previous day, manages queue"
+        },
+        {
+          "name": "detectIncompleteBlocks",
+          "signature": "function detectIncompleteBlocks(yesterdayPlan: StudyBlock[]): StudyBlock[]",
+          "description": "Filters blocks with status 'pending' or 'active'"
+        }
+      ],
+      "edgeCases": [
+        "User adds block, completes it, then day rolls over: doesn't suggest rollover",
+        "Rollover queue persists for 7 days: auto-purge older suggestions",
+        "User dismisses rollover, then adds same block manually: don't duplicate"
+      ],
+      "tests": [
+        "Unit: detectIncompleteBlocks excludes 'done' status blocks",
+        "Integration: addAllToToday generates new IDs for rolled-over blocks",
+        "E2E: banner shows max once per day (localStorage flag)"
+      ],
+      "performance": "Detection runs only on dashboard mount (not every render)",
+      "security": "Rollover queue stored separately, doesn't pollute current day plan"
+    },
+    {
+      "featureId": 8,
+      "featureName": "7-Day Week View",
+      "files": [
+        "app/planner/page.tsx (new)",
+        "app/planner/components/DayColumn.tsx (new)",
+        "app/planner/components/WeekGrid.tsx (new)",
+        "hooks/useWeekPlan.ts (new)",
+        "lib/weekPlanning.ts (new: multi-day operations)"
+      ],
+      "keyComponents": [
+        {
+          "name": "WeekGrid",
+          "signature": "function WeekGrid({ days, onBlockMove, onBlockAdd }: { days: DayPlan[]; onBlockMove: (blockId: string, fromDate: string, toDate: string) => void; onBlockAdd: (date: string) => void }): JSX.Element",
+          "description": "7-column grid with drag-drop between days"
+        },
+        {
+          "name": "useWeekPlan",
+          "signature": "function useWeekPlan(startDate: string): { days: DayPlan[]; moveBlock: (blockId: string, fromDate: string, toDate: string) => void; updateDayContext: (date: string, context: Partial<DayContext>) => void }",
+          "description": "Manages 7-day plan in localStorage, syncs with daily view"
+        },
+        {
+          "name": "moveBlockBetweenDays",
+          "signature": "function moveBlockBetweenDays(blockId: string, fromDate: string, toDate: string, plans: Record<string, StudyBlock[]>): void",
+          "description": "Atomically removes block from source, adds to target"
+        }
+      ],
+      "edgeCases": [
+        "Dragging to past date: show error toast, revert animation",
+        "Week spans month boundary: correctly render dates (e.g., Jan 30 → Feb 2)",
+        "Editing today's plan in week view: dashboard immediately reflects changes"
+      ],
+      "tests": [
+        "Unit: moveBlockBetweenDays validates target date is future",
+        "Integration: drag-drop updates both source and target localStorage keys",
+        "E2E: week view and dashboard stay in sync (bi-directional)"
+      ],
+      "performance": "Only load plans for visible week (not entire month)",
+      "security": "Past dates are read-only (greyed out, drag disabled)"
+    }
+  ],
+  
+  "microInteractions": [
+    {
+      "id": 1,
+      "element": "Block completion",
+      "current": "Status changes to 'done', card turns green",
+      "improved": "Add confetti animation (brief, 1 second) + haptic feedback (mobile) + sound chime (optional, mutable in settings) + completion toast: '🎉 Math completed! +15 XP'",
+      "why": "Celebrates achievement, provides multi-sensory feedback, increases dopamine hit and motivation for next block"
+    },
+    {
+      "id": 2,
+      "element": "Streak counter",
+      "current": "Shows number only",
+      "improved": "Flame icon pulses when hovering, tooltip appears: 'Keep it going! 7-day streak'. At 7/30/100-day milestones, flame changes color (orange → blue → gold) with sparkle animation",
+      "why": "Visual progression creates sense of advancement, milestone colors provide tangible goals, hover interaction educates new users"
+    },
+    {
+      "id": 3,
+      "element": "Break reminder copy",
+      "current": "'Take a break'",
+      "improved": "'You've earned a break! 🌟 Try: [activity suggestion]' with rotating suggestions. After 60 seconds: 'Break timer: 4m 12s left' with circular countdown",
+      "why": "Frames break as reward not interruption, reduces guilt, specific suggestion lowers decision fatigue, countdown creates bounded commitment"
+    },
+    {
+      "id": 4,
+      "element": "Empty state (no blocks today)",
+      "current": "Blank dashboard",
+      "improved": "Illustration (student at desk) + message: 'No plan for today yet. How's your energy?' + quick context check-in buttons (Low/Normal/High) → auto-generates plan on selection",
+      "why": "Proactive assistance prevents blank-page paralysis, immediately actionable CTA, leverages existing context system"
+    },
+    {
+      "id": 5,
+      "element": "Timer running state",
+      "current": "Numbers count down",
+      "improved": "Add subtle pulse to timer digits every second, progress ring around timer fills inversely (empties as time decreases), color shifts from blue → amber at 5 minutes left (not red = anxiety)",
+      "why": "Visual rhythm improves focus perception, amber warning is gentle nudge not panic trigger, progress ring provides spatial reference"
+    },
+    {
+      "id": 6,
+      "element": "Subject selector",
+      "current": "Dropdown list",
+      "improved": "Grid of colored pills (one per subject), recently used subjects appear first, hover shows last studied time: 'Math · Studied 2 days ago'",
+      "why": "Visual scanning faster than dropdown, color-coding aids memory, recency info helps balance study time"
+    },
+    {
+      "id": 7,
+      "element": "Delete block confirmation",
+      "current": "Modal: 'Are you sure? Yes/No'",
+      "improved": "Inline toast with undo button: 'Block removed. [Undo]' (5-second timeout). After 3 deletes in a row: gentle message: 'Having trouble staying on track? Try breaking blocks into smaller chunks.'",
+      "why": "Undo pattern is less disruptive than modal, builds trust (reversible actions), proactive coaching after repeated deletes"
+    },
+    {
+      "id": 8,
+      "element": "Plan generation loading",
+      "current": "Spinner + 'Loading...'",
+      "improved": "Progress steps with checkmarks: '✓ Analyzing your day... ✓ Balancing subjects... ✓ Optimizing schedule...' with 300ms delay between steps (feels intentional not instant)",
+      "why": "Builds anticipation, communicates system intelligence, short delay prevents feeling computer-generated"
+    },
+    {
+      "id": 9,
+      "element": "Low energy day",
+      "current": "Generates normal plan",
+      "improved": "After selecting 'Low' mood, show tip card: 'We've adjusted your plan—shorter blocks (30m) and more breaks. You've got this! 💪' + soft yellow accent on blocks",
+      "why": "Transparent adaptation builds trust, encouragement combats low-motivation guilt, visual distinction reminds user plan is personalized"
+    },
+    {
+      "id": 10,
+      "element": "Exam phase active",
+      "current": "Blocks labeled 'Exam Prep'",
+      "improved": "Dashboard header changes: 'Exam Mode 🎯 [Subject] in [X days]' with progress bar showing syllabus completion. Block cards have red accent border (focus indicator) + time allocation vs recommended",
+      "why": "Persistent exam reminder maintains urgency, progress bar provides motivation/anxiety relief, time tracking highlights under-prepared subjects"
+    }
+  ],
+  
+  "roadmap": [
+    {
+      "sprint": 1,
+      "duration": "2 weeks",
+      "theme": "Core Stability & Analytics",
+      "goals": [
+        "Implement Daily Progress Tracker (feature #1) with projected finish time",
+        "Build Subject Analytics Dashboard (feature #4) with week/month toggle",
+        "Add Study Streak Counter (feature #5) with calendar heatmap",
+        "Implement 3 micro-interactions: block completion animation, timer state colors, streak milestone colors",
+        "Fix any remaining edge cases in onboarding → day-context → dashboard flow",
+        "Comprehensive testing: 90% code coverage on new hooks, E2E tests for dashboard interactions"
+      ],
+      "deliverables": [
+        "/stats page functional with exportable CSV",
+        "Dashboard shows progress ring + streak badge",
+        "All localStorage operations error-handled",
+        "Documentation: README with feature list + setup instructions"
+      ],
+      "measurableTargets": [
+        "Zero console errors on happy path flows",
+        "Page load time < 2 seconds on 4G connection",
+        "All WCAG AA contrast ratios met (audit via Lighthouse)"
+      ]
+    },
+    {
+      "sprint": 2,
+      "duration": "2 weeks",
+      "theme": "Plan Flexibility & User Control",
+      "goals": [
+        "Implement Inline Plan Editor (feature #3) with drag reorder + undo",
+        "Add Quick Block Notes (feature #6) with search functionality",
+        "Build Rollover Incomplete Tasks (feature #7) with banner + modal",
+        "Add Smart Break Reminders (feature #2) with customizable activities",
+        "Implement 4 micro-interactions: empty state, delete undo, plan generation steps, break reminder copy",
+        "Polish mobile responsiveness: test on iPhone SE, Galaxy S21, iPad"
+      ],
+      "deliverables": [
+        "All CRUD operations on study blocks working smoothly",
+        "Notes searchable and filterable by subject",
+        "Break system fully configurable in settings",
+        "Mobile gestures (long-press, swipe) implemented"
+      ],
+      "measurableTargets": [
+        "Users can reorder 10 blocks in < 30 seconds",
+        "Note auto-save triggers within 500ms of blur",
+        "Break skip rate tracked and surfaced in stats"
+      ]
+    },
+    {
+      "sprint": 3,
+      "duration": "2 weeks",
+      "theme": "Advanced Planning & Polish",
+      "goals": [
+        "Implement 7-Day Week View (feature #8) with drag-drop scheduling",
+        "Add Exam Countdown Widget (feature #9) with syllabus checklist",
+        "Build Data Export/Import (feature #12) with validation",
+        "Implement Focus Mode (feature #10) with fullscreen + animations",
+        "Add remaining micro-interactions: subject selector, exam mode header, low energy tip",
+        "Comprehensive accessibility audit: keyboard nav, screen reader labels, focus management",
+        "Performance optimization: lazy load stats charts, debounce localStorage writes",
+        "User testing: 5 students try app, collect feedback on pain points"
+      ],
+      "deliverables": [
+        "/planner page with week view fully functional",
+        "Exam tracking with progress indicators",
+        "Export/import tested with 1000+ blocks of data",
+        "All features keyboard-accessible (tabbing, shortcuts)"
+      ],
+      "measurableTargets": [
+        "Week view renders 50 blocks in < 500ms",
+        "Export file size < 2MB for typical user (6 months data)",
+        "Zero critical accessibility violations (axe-core audit)",
+        "User testing: 4/5 students successfully complete onboarding → plan → study cycle without help"
+      ]
+    }
+  ],
+  
+  "metrics": [
+    {
+      "kpi": "Daily Active Blocks Completed",
+      "description": "Average number of study blocks completed per day per user",
+      "target": "> 3.5 blocks/day (indicates regular engagement)",
+      "tracking": "localStorage: sum completed blocks daily, calculate 7-day rolling average",
+      "dashboard": "Show on stats page: line chart of last 30 days with trend line",
+      "why": "Core value metric—app succeeds if users actually study more"
+    },
+    {
+      "kpi": "Plan Completion Rate",
+      "description": "Percentage of generated blocks that get marked 'done' (not deleted/skipped)",
+      "target": "> 75% (realistic with student unpredictability)",
+      "tracking": "localStorage: daily_progress_v1, calculate (completedBlocks / totalBlocks) * 100",
+      "dashboard": "Show on dashboard: small percentage badge next to progress ring",
+      "why": "Indicates plan quality and user commitment, low rate suggests over-ambitious planning"
+    },
+    {
+      "kpi": "Study Streak Length",
+      "description": "Current and longest consecutive day streaks",
+      "target": "Average current streak > 5 days, longest > 14 days",
+      "tracking": "localStorage: study_streak_v1, increment/reset daily",
+      "dashboard": "Prominent on dashboard (flame badge) + historical chart on stats page",
+      "why": "Habit formation indicator, correlates with long-term retention"
+    },
+    {
+      "kpi": "Subject Balance Score",
+      "description": "Standard deviation of weekly hours across subjects (lower = more balanced)",
+      "target": "StdDev < 2 hours (indicates even distribution)",
+      "tracking": "localStorage: calculate weekly from subject_analytics_v2, store trend",
+      "dashboard": "Show on stats page: warning badge if imbalanced ('Physics needs attention!')",
+      "why": "Prevents neglecting subjects, aligns with student success best practices"
+    },
+    {
+      "kpi": "Feature Adoption Rate",
+      "description": "Percentage of users engaging with new features (notes, breaks, week view) within 7 days of release",
+      "target": "> 40% adoption for core features, > 20% for experimental",
+      "tracking": "localStorage: feature_usage_v1, log first use timestamp per feature",
+      "dashboard": "Internal only (for product decisions), not shown to users",
+      "why": "Guides roadmap prioritization, identifies features needing better onboarding"
+    },
+    {
+      "kpi": "Break Compliance Rate",
+      "description": "Percentage of suggested breaks actually taken (not skipped)",
+      "target": "> 60% (balance between enforcement and flexibility)",
+      "tracking": "localStorage: break_config_v1, track skips vs completions",
+      "dashboard": "Show on stats page: 'You took 8/10 breaks this week—great for focus!'",
+      "why": "Prevents burnout, high skip rate indicates users need shorter blocks or longer breaks"
+    },
+    {
+      "kpi": "Data Retention (7/30 days)",
+      "description": "Percentage of users who return after initial week/month",
+      "target": "7-day: > 50%, 30-day: > 30% (standard for productivity apps)",
+      "tracking": "localStorage: onboarding_completed timestamp, check lastActive date",
+      "dashboard": "Internal only, not shown to users",
+      "why": "Ultimate success metric—app must provide ongoing value, not just initial novelty"
+    }
+  ]
+}
