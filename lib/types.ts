@@ -17,14 +17,14 @@ export type DayContext = {
 export type Mood = "low" | "normal" | "high";
 export type ExamPhase = "none" | "isa" | "esa";
 
-  
-
-export type StudyBlock = {
-    id: string;
-    subjectCode: string;
-    title: string;
-    durationMin: number;
-    type: "study" | "revision" | "exam" | "break";
-    status: "pending" | "active" | "done";
-  };
+export interface StudyBlock {
+  id: string;
+  title: string;
+  subjectCode: string;
+  durationMin: number;
+  status: "pending" | "done" | "skipped";
+  createdAt: string; // ISO timestamp when block was created
+  completedAt?: string; // ISO timestamp when marked done
+  scheduledTime?: string; // HH:MM format (e.g., "09:00")
+}
   

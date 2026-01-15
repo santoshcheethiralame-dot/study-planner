@@ -13,14 +13,32 @@ const COLORS = [
   "#06b6d4", // cyan
 ];
 
-function exportStatsToCSV({ subjectChartData, dailyChartData }) {
+interface SubjectChartData {
+  subject: string;
+  hours: number;
+  blocks: number;
+  color: string;
+}
+
+interface DailyChartData {
+  date: string;
+  blocks: number;
+}
+
+function exportStatsToCSV({ 
+  subjectChartData, 
+  dailyChartData 
+}: { 
+  subjectChartData: SubjectChartData[];
+  dailyChartData: DailyChartData[];
+}) {
   // Compile CSV content for the main stats
   let csv = "Subjects\nSubject,Hours,Blocks\n";
-  subjectChartData.forEach(row => {
+  subjectChartData.forEach((row: SubjectChartData) => {
     csv += `${row.subject},${row.hours},${row.blocks}\n`;
   });
   csv += "\nDaily Blocks\nDay,Blocks\n";
-  dailyChartData.forEach(row => {
+  dailyChartData.forEach((row: DailyChartData) => {
     csv += `${row.date},${row.blocks}\n`;
   });
 
@@ -52,12 +70,14 @@ export default function StatsPage() {
     }
   }, []);
 
+  // --- NEW WEEK-ALIGNED HEATMAP LOGIC ---
   const detailedStats = useMemo(() => {
+
     if (typeof window === "undefined" || !mounted) {
       return {
-        subjectChartData: [],
-        dailyChartData: [],
-        heatmapData: [],
+        subjectChartData: [] as SubjectChartData[],
+        dailyChartData: [] as DailyChartData[],
+        heatmapData: [] as number[][],
         hasRealData: false,
       };
     }
@@ -71,22 +91,22 @@ export default function StatsPage() {
       { minutes: number; blocks: number; color: string }
     > = {};
     const dailyData: Record<string, number> = {};
-
-    // Heatmap data structure: [day][hour] = intensity (0-3)
     const heatmapRaw: Record<string, Record<number, number>> = {};
 
+    // 1. Parse all LocalStorage Data
     allKeys.forEach((key) => {
       try {
         const data = JSON.parse(localStorage.getItem(key)!);
         if (!data?.blocks) return;
 
         const blocks: StudyBlock[] = data.blocks;
-        const date = data.date;
+        const date = data.date; // Format: "YYYY-MM-DD"
 
         dailyData[date] = blocks.filter((b) => b.status === "done").length;
 
         blocks.forEach((block) => {
           if (block.status === "done") {
+            // Aggregate Subject Data
             if (!subjectData[block.subjectCode]) {
               subjectData[block.subjectCode] = {
                 minutes: 0,
@@ -97,26 +117,36 @@ export default function StatsPage() {
             subjectData[block.subjectCode].minutes += block.durationMin;
             subjectData[block.subjectCode].blocks += 1;
 
-            // For heatmap: extract hour from timestamp if available
-            // If no timestamp, distribute randomly for demo
+            // Aggregate Heatmap Data
             if (!heatmapRaw[date]) {
               heatmapRaw[date] = {};
             }
-            // Approximate hour slots (6 AM = 0, 9 PM = 11 in our 12-slot grid)
-            const hourSlot = Math.floor(Math.random() * 12); // Will need real timestamp
+
+            let hourSlot = 0;
+            // Use completedAt if available, otherwise estimate based on list position
+            if ((block as any).completedAt) {
+              const completedDate = new Date((block as any).completedAt);
+              const hour = completedDate.getHours();
+              hourSlot = Math.max(0, Math.min(11, Math.floor((hour - 6) / 1.25)));
+            } else {
+              const blockIndex = blocks.indexOf(block);
+              hourSlot = Math.min(11, Math.floor(blockIndex * 2.5));
+            }
+
             heatmapRaw[date][hourSlot] = (heatmapRaw[date][hourSlot] || 0) + 1;
           }
         });
       } catch (e) {
-        // Skip invalid data
+        console.error("Error parsing stats data", e);
       }
     });
 
     const hasRealData =
       Object.keys(subjectData).length > 0 || Object.keys(dailyData).length > 0;
 
-    // If no real data, use mock data
+    // --- RETURN MOCK DATA IF NO REAL DATA ---
     if (!hasRealData) {
+      // (Your original mock data block here)
       return {
         subjectChartData: [
           { subject: "Math", hours: 12, blocks: 16, color: COLORS[0] },
@@ -124,7 +154,7 @@ export default function StatsPage() {
           { subject: "History", hours: 4, blocks: 5, color: COLORS[2] },
           { subject: "English", hours: 3.5, blocks: 5, color: COLORS[3] },
           { subject: "Biology", hours: 4.6, blocks: 6, color: COLORS[4] },
-        ],
+        ] as SubjectChartData[],
         dailyChartData: [
           { date: "Mon", blocks: 3 },
           { date: "Tue", blocks: 5 },
@@ -133,7 +163,7 @@ export default function StatsPage() {
           { date: "Fri", blocks: 3 },
           { date: "Sat", blocks: 1 },
           { date: "Sun", blocks: 2 },
-        ],
+        ] as DailyChartData[],
         heatmapData: [
           [0, 1, 3, 2, 1, 0, 1, 3, 2, 1, 0, 0], // Mon
           [0, 2, 3, 3, 1, 0, 2, 3, 1, 0, 0, 0], // Tue
@@ -142,19 +172,22 @@ export default function StatsPage() {
           [0, 1, 2, 1, 0, 0, 1, 2, 1, 0, 0, 0], // Fri
           [0, 0, 1, 1, 0, 0, 0, 1, 2, 1, 0, 0], // Sat
           [0, 0, 0, 1, 0, 0, 1, 2, 1, 0, 0, 0], // Sun
-        ],
+        ] as number[][],
         hasRealData: false,
       };
     }
 
-    const subjectChartData = Object.entries(subjectData).map(([code, data]) => ({
-      subject: code,
-      hours: Math.round((data.minutes / 60) * 10) / 10,
-      blocks: data.blocks,
-      color: data.color,
-    }));
+    // --- REAL DATA PROCESSING (including week-aligned heatmap) ---
+    const subjectChartData: SubjectChartData[] = Object.entries(subjectData).map(
+      ([code, data]) => ({
+        subject: code,
+        hours: Math.round((data.minutes / 60) * 10) / 10,
+        blocks: data.blocks,
+        color: data.color,
+      })
+    );
 
-    const dailyChartData = Object.entries(dailyData)
+    const dailyChartData: DailyChartData[] = Object.entries(dailyData)
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(-7)
       .map(([date, blocks]) => ({
@@ -162,27 +195,40 @@ export default function StatsPage() {
         blocks,
       }));
 
-    // Convert heatmap data to array format for last 7 days
-    const last7Days = Object.keys(dailyData).sort().slice(-7);
+    // --- FIXED HEATMAP LOGIC: Align to Current Week (Mon-Sun) ---
+    // 1. Get the current date and find the Monday of this week
+    const now = new Date();
+    const currentDay = now.getDay(); // 0 is Sunday
+    const distanceToMonday = currentDay === 0 ? 6 : currentDay - 1;
 
-    const heatmapData = last7Days.map((date) => {
-      const dayData = heatmapRaw[date] || {};
+    const mondayDate = new Date(now);
+    mondayDate.setDate(now.getDate() - distanceToMonday);
+
+    // 2. Generate an array of 7 date strings (YYYY-MM-DD) for this week
+    const thisWeeksDates: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(mondayDate);
+      d.setDate(mondayDate.getDate() + i);
+
+      // Format manual YYYY-MM-DD to avoid UTC timezone issues
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      thisWeeksDates.push(`${year}-${month}-${day}`);
+    }
+
+    // 3. Map these specific dates to the heatmap slots
+    const heatmapData: number[][] = thisWeeksDates.map((dateStr) => {
+      const dayData = heatmapRaw[dateStr] || {};
       const hourArray = Array(12).fill(0);
 
-      // Fill in the hours with activity data
       Object.entries(dayData).forEach(([hour, count]) => {
         const hourNum = parseInt(hour);
-        // Normalize count to 0-3 scale
         hourArray[hourNum] = Math.min(3, Math.floor(count / 1));
       });
 
       return hourArray;
     });
-
-    // Pad with empty days if less than 7
-    while (heatmapData.length < 7) {
-      heatmapData.unshift(Array(12).fill(0));
-    }
 
     return {
       subjectChartData,
@@ -190,6 +236,7 @@ export default function StatsPage() {
       heatmapData,
       hasRealData: true,
     };
+
   }, [period, mounted]);
 
   const totalHours = Math.floor(totalMinutes / 60);
@@ -226,9 +273,6 @@ export default function StatsPage() {
     );
   }
 
-  // Light mode only classes: strip all dark: classes.
-  // Also remove the top navbar/header.
-
   return (
     <div className="bg-[#f6f6f8] min-h-screen flex flex-col font-display">
       {/* Main Content */}
@@ -260,6 +304,7 @@ export default function StatsPage() {
               </button>
             </div>
           </div>
+
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white p-6 rounded-xl border border-[#f0f2f4] shadow-sm">
@@ -281,6 +326,7 @@ export default function StatsPage() {
                 </div>
               </div>
             </div>
+
             <div className="bg-white p-6 rounded-xl border border-[#f0f2f4] shadow-sm">
               <div className="flex items-center justify-between">
                 <p className="text-gray-500 text-sm font-medium">
@@ -303,6 +349,7 @@ export default function StatsPage() {
                 </div>
               </div>
             </div>
+
             <div className="bg-white p-6 rounded-xl border border-[#f0f2f4] shadow-sm">
               <div className="flex items-center justify-between">
                 <p className="text-gray-500 text-sm font-medium">
@@ -322,6 +369,7 @@ export default function StatsPage() {
               </div>
             </div>
           </div>
+
           {/* Charts Section */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {/* Hours Studied Chart */}
@@ -338,7 +386,7 @@ export default function StatsPage() {
                 </button>
               </div>
               <div className="flex flex-col gap-5">
-                {detailedStats.subjectChartData.map((subject) => (
+                {detailedStats.subjectChartData.map((subject: SubjectChartData) => (
                   <div
                     key={subject.subject}
                     className="flex flex-col gap-1.5"
@@ -359,7 +407,7 @@ export default function StatsPage() {
                             (subject.hours /
                               Math.max(
                                 ...detailedStats.subjectChartData.map(
-                                  (s) => s.hours
+                                  (s: SubjectChartData) => s.hours
                                 )
                               )) *
                             100
@@ -372,6 +420,7 @@ export default function StatsPage() {
                 ))}
               </div>
             </div>
+
             {/* Energy Heatmap */}
             <div className="bg-white p-6 rounded-xl border border-[#f0f2f4] shadow-sm flex flex-col h-full">
               <div className="flex items-center justify-between mb-6">
@@ -411,7 +460,7 @@ export default function StatsPage() {
                         </span>
                         <div className="flex-1 grid grid-cols-12 gap-1 h-6">
                           {detailedStats.heatmapData[dayIdx]?.map(
-                            (intensity, hourIdx) => {
+                            (intensity: number, hourIdx: number) => {
                               const colors = [
                                 "bg-gray-100",
                                 "bg-blue-200",
@@ -445,6 +494,7 @@ export default function StatsPage() {
               </div>
             </div>
           </div>
+
           {/* Subject Performance Table */}
           <div className="bg-white rounded-xl border border-[#f0f2f4] shadow-sm overflow-hidden">
             <div className="px-6 py-5 border-b border-[#f0f2f4] flex items-center justify-between">
@@ -475,7 +525,7 @@ export default function StatsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#f0f2f4]">
-                  {detailedStats.subjectChartData.map((subject, idx) => (
+                  {detailedStats.subjectChartData.map((subject: SubjectChartData, idx: number) => (
                     <tr
                       key={subject.subject}
                       className="hover:bg-gray-50 transition-colors"
@@ -504,7 +554,7 @@ export default function StatsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="w-24 h-8 flex items-end gap-1">
-                          {[0.3, 0.5, 0.4, 0.7, 0.9].map((height, i) => (
+                          {[0.3, 0.5, 0.4, 0.7, 0.9].map((height: number, i: number) => (
                             <div
                               key={i}
                               className="w-1.5 rounded-sm"

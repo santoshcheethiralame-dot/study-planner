@@ -63,12 +63,34 @@ function IntelligentTimeline({ blocks }: { blocks: StudyBlock[] }) {
     time: string;
   }[] = [];
 
-  // Mock time generator for demo
-  function getMockedTime(index: number): string {
-    const options = [
-      "09:00 AM", "10:30 AM", "01:00 PM", "02:30 PM", "04:00 PM"
-    ];
-    return options[index % options.length];
+  // Use actual time from block or calculate from schedule
+  function getBlockTime(block: StudyBlock, index: number): string {
+    // Priority 1: Use scheduled time if available
+    if ((block as any).scheduledTime) {
+      return (block as any).scheduledTime;
+    }
+
+    // Priority 2: Use completion timestamp
+    if ((block as any).completedAt) {
+      return new Date((block as any).completedAt).toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+    }
+
+    // Priority 3: Calculate from position
+    const startHour = 9;
+    const totalMinutes = blocks
+      .slice(0, index)
+      .reduce((sum, b) => sum + b.durationMin, 0);
+
+    const hour = startHour + Math.floor(totalMinutes / 60);
+    const minute = totalMinutes % 60;
+
+    return `${hour.toString().padStart(2, "0")}:${minute
+      .toString()
+      .padStart(2, "0")}`;
   }
 
   const nonDone = blocks.filter((b) => b.status !== "done");
@@ -79,7 +101,7 @@ function IntelligentTimeline({ blocks }: { blocks: StudyBlock[] }) {
     items.push({
       block,
       type: "past",
-      time: getMockedTime(idx),
+      time: getBlockTime(block, idx),
     });
   });
 
@@ -89,7 +111,7 @@ function IntelligentTimeline({ blocks }: { blocks: StudyBlock[] }) {
     items.push({
       block: curBlock,
       type: "current",
-      time: getMockedTime(doneBlocks.length),
+      time: getBlockTime(curBlock, doneBlocks.length),
     });
 
     // Remaining: upcoming
@@ -97,7 +119,7 @@ function IntelligentTimeline({ blocks }: { blocks: StudyBlock[] }) {
       items.push({
         block,
         type: "upcoming",
-        time: getMockedTime(doneBlocks.length + 1 + idx),
+        time: getBlockTime(block, doneBlocks.length + 1 + idx),
       });
     });
   }

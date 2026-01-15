@@ -12,12 +12,18 @@ interface StudyBlock {
   status?: "pending" | "done" | "active";
 }
 
+// Find this interface in FocusSession.tsx and update it:
 interface FocusSessionProps {
-  block: StudyBlock;
+  block: {
+    id: string;
+    title: string;
+    subjectCode: string;
+    durationMin: number;
+    status?: "pending" | "done" | "skipped" | "active"; // Add "skipped" here
+  };
   onExit: () => void;
   onComplete: () => void;
 }
-
 // useFocusTimer Hook
 function useFocusTimer(initialMinutes: number, onComplete: () => void, modalOpen: boolean) {
   const [timeLeft, setTimeLeft] = useState(initialMinutes * 60);
@@ -125,6 +131,7 @@ function useFocusTimer(initialMinutes: number, onComplete: () => void, modalOpen
  * - Else, the textarea is empty for user input.
  * - After saving, the latest notes persist and can be viewed again for that session via the footer button.
  */
+
 function NotesModal({ 
   blockId, 
   subjectCode, 
